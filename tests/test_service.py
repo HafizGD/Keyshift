@@ -387,3 +387,37 @@ def test_service_reconnects_to_the_same_keyboard(
     assert attempts[0] == 2
     assert sum(call[0] == "listener-open" for call in calls) == 2
     assert ("emit", resolve_key("B"), 1) in calls
+
+
+def test_retriggering_active_macro_keeps_service_processing_input(monkeypatch, tmp_path) -> None:
+    from keyshift.macro_engine import MacroEngine
+
+    # Keep the real worker active until service cleanup cancels it, without sleeps.
+    monkeypatch.setattr(
+        service_module, "MacroEngine",
+        lambda output: MacroEngine(output, waiter=lambda cancel, seconds: cancel.wait()),
+    )
+    chord = [event("F1", 1), event("F2", 1), event("F2", 0), event("F1", 0)]
+    manager, service, device, calls = make_service(
+        monkeypatch, tmp_path, chord + chord + [event("A", 1), event("A", 0)],
+    )
+    manager.save_global({
+        "shortcuts": {"F1+F2": "action:macro:slow"},
+        "macros": {"slow": [{"type": "delay_ms", "ms": 1000}]},
+    })
+    service.run(device, timeout=3)
+    emitted = [call for call in calls if call[0] == "emit"]
+    assert emitted == [("emit", 30, 1), ("emit", 30, 0)]
+    assert ("output-close",) in calls
+    assert not ProcessLock.is_locked(tmp_path / "service.lock")
+
+
+def test_service_does_not_release_shared_target_early(monkeypatch, tmp_path) -> None:
+    manager, service, device, calls = make_service(
+        monkeypatch, tmp_path,
+        [event("A", 1), event("B", 1), event("A", 0), event("B", 2), event("B", 0)],
+    )
+    manager.save_global({"remaps": {"A": "B"}})
+    service.run(device, timeout=1)
+    emitted = [call for call in calls if call[0] == "emit"]
+    assert emitted == [("emit", 48, 1), ("emit", 48, 2), ("emit", 48, 0)]

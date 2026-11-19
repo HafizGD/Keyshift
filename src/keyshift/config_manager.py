@@ -72,6 +72,8 @@ def validate_config(config: object) -> dict[str, Any]:
     """Validate the supported configuration schema and return a safe copy."""
     if not isinstance(config, dict):
         raise ConfigError("Configuration root must be a YAML mapping.")
+    if any(not isinstance(key, str) for key in config):
+        raise ConfigError("Configuration keys must be strings.")
     unknown = set(config) - _CONFIG_KEYS
     if unknown:
         raise ConfigError(f"Unknown configuration key(s): {', '.join(sorted(unknown))}.")
@@ -203,6 +205,8 @@ def validate_config(config: object) -> dict[str, Any]:
     if metadata is not None:
         if not isinstance(metadata, dict):
             raise ConfigError("metadata must be a mapping.")
+        if any(not isinstance(key, str) for key in metadata):
+            raise ConfigError("metadata keys must be strings.")
         extra_metadata = set(metadata) - {"name", "description", "created_at"}
         if extra_metadata:
             raise ConfigError(
@@ -245,6 +249,8 @@ def _validate_macro_steps(name: str, steps: object) -> None:
         location = f"macros.{name}[{index}]"
         if not isinstance(step, dict):
             raise ConfigError(f"{location} must be a mapping.")
+        if any(not isinstance(key, str) for key in step):
+            raise ConfigError(f"{location} keys must be strings.")
         step_type = step.get("type")
         if not isinstance(step_type, str) or step_type not in allowed:
             raise ConfigError(f"{location}.type is unsupported: {step_type!r}.")
@@ -482,6 +488,8 @@ class ConfigManager:
     def _validate_state(state: object) -> dict[str, str | None]:
         if not isinstance(state, dict):
             raise ConfigError("state.yaml must contain a mapping.")
+        if any(not isinstance(key, str) for key in state):
+            raise ConfigError("state.yaml keys must be strings.")
         unknown = set(state) - set(DEFAULT_STATE)
         if unknown:
             raise ConfigError(f"Unknown state key(s): {', '.join(sorted(unknown))}.")

@@ -121,6 +121,12 @@ def find_device(
 ) -> DeviceInfo:
     """Find a keyboard by exact path, one-based list number, or name fragment."""
     devices = list_keyboards(enumerator)
+    if not devices:
+        raise DeviceNotFoundError(
+            "No keyboard devices found. keyshift requires readable Linux "
+            "/dev/input/event* keyboard devices. Run 'keyshift doctor' "
+            "to check device availability and permissions."
+        )
 
     path_matches = [device for device in devices if device.path == selector]
     if path_matches:
