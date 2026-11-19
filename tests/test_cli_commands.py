@@ -4,6 +4,7 @@ from typer.testing import CliRunner
 
 from keyshift import cli, device_manager
 from keyshift.config_manager import ConfigManager
+from keyshift.diagnostics import Diagnostic
 
 
 def use_xdg(monkeypatch, tmp_path) -> None:
@@ -127,6 +128,7 @@ def test_reset_requires_explicit_force_in_noninteractive_use(
 
 def test_run_command_passes_options_to_service(monkeypatch, tmp_path) -> None:
     use_xdg(monkeypatch, tmp_path)
+    monkeypatch.setattr(cli, "configure_logging", lambda *, debug: None)
     info = device_manager.DeviceInfo(
         path="/dev/input/event8",
         name="Test Keyboard",
@@ -178,3 +180,22 @@ def test_run_requires_a_finite_timeout(monkeypatch, tmp_path) -> None:
     assert "--timeout greater than zero is required" in missing.output
     assert infinite.exit_code == 1
     assert "finite --timeout" in infinite.output
+
+
+def test_doctor_command_reports_checks_and_fails_on_invalid_configuration(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        cli.diagnostics,
+        "run_diagnostics",
+        lambda: [
+            Diagnostic("Input devices", "WARN", "No readable keyboards."),
+            Diagnostic("Configuration", "FAIL", "Invalid YAML."),
+        ],
+    )
+
+    result = CliRunner().invoke(cli.app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "[WARN] Input devices: No readable keyboards." in result.output
+    assert "[FAIL] Configuration: Invalid YAML." in result.output

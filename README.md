@@ -66,6 +66,7 @@ keyshift profile --create gaming
 keyshift profile gaming
 keyshift select-device 1
 keyshift status
+keyshift doctor
 keyshift run --device 1 --timeout 60
 keyshift run --device 1 --timeout 60 --reconnect
 keyshift reset --force
@@ -98,6 +99,36 @@ Shortcut triggers and outputs use Linux key codes rather than translated
 characters, so behavior depends on the active layout. Macro text entry uses a
 basic US key layout, not a character-layout translation service.
 
+`doctor` performs read-only checks for dependencies, readable keyboard nodes,
+configuration validity, `/dev/uinput`, the uinput module, and a running service.
+Missing devices or uinput access are warnings; invalid configuration or missing
+required dependencies make it exit nonzero.
+
+The service writes rotating logs to
+`~/.local/state/keyshift/keyshift.log` (or `$XDG_STATE_HOME/keyshift/`), with
+owner-only file permissions. `--debug` increases diagnostic detail but does not
+log key names, codes, or key-event values.
+
+## Troubleshooting checklist
+
+- Run `keyshift doctor` before starting the service; fix any dependency or
+  configuration failures it reports.
+- If input devices are unreadable, confirm group membership with `groups`,
+  add the account to `input` if appropriate, then log out and back in. The
+  `input` group can expose all keystrokes to processes run by that account.
+- If `/dev/uinput` is missing, load the module with `sudo modprobe uinput`.
+  If it exists but is inaccessible, check the udev group/mode rule and refresh
+  the login session after group changes.
+- Use `keyshift list-devices` and `keyshift select-device` to choose a keyboard
+  node that actually exposes normal key capabilities. A physical keyboard can
+  have several event nodes, and not every environment exposes one that
+  keyshift can use.
+- Before `keyshift run`, verify the emergency chord in the configuration and
+  use a short finite timeout. Hold the full chord for one second to stop, or
+  use `Ctrl+C`; keep an alternate input route available during testing.
+- Review the private service log for lifecycle and device-disconnect messages.
+  Logs intentionally omit individual key events.
+
 ## Configuration and profiles
 
 YAML configuration is stored under `~/.config/keyshift/` (or
@@ -115,5 +146,7 @@ YAML configuration is stored under `~/.config/keyshift/` (or
 - `src/keyshift/virtual_keyboard.py`: virtual keyboard output
 - `src/keyshift/config_manager.py`: configuration and profiles
 - `src/keyshift/service.py`: safe service lifecycle and event pipeline
+- `src/keyshift/diagnostics.py`: read-only system and configuration checks
+- `src/keyshift/logging_config.py`: private rotating service logs
 - `src/keyshift/cli.py`: Typer command-line interface
 - `configs/default.yaml`: starter configuration

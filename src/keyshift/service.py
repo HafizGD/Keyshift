@@ -261,6 +261,15 @@ class KeyshiftService:
         self._profile_override = profile
         output = None
         try:
+            logger.info(
+                "Starting remapping service on %s with a %.1f second timeout.",
+                device_info.path,
+                timeout,
+            )
+            if debug:
+                logger.debug(
+                    "Debug logging is enabled; key event contents are not logged."
+                )
             with ProcessLock(self.lock_path):
                 try:
                     output = self.keyboard_factory(
@@ -280,7 +289,7 @@ class KeyshiftService:
                         if remaining <= 0:
                             break
                         try:
-                            self._run_listener(selected, remaining, debug)
+                            self._run_listener(selected, remaining)
                             break
                         except DeviceDisconnectedError:
                             if not reconnect:
@@ -315,6 +324,7 @@ class KeyshiftService:
                                 if output is not None:
                                     output.close()
         finally:
+            logger.info("Remapping service stopped.")
             self._running = False
             self._device_info = None
             self._output = None
@@ -345,7 +355,6 @@ class KeyshiftService:
         self,
         device_info: DeviceInfo,
         timeout: float,
-        debug: bool,
     ) -> None:
         input_listener = self.listener_factory(device_info, grab=True)
         entered = False
@@ -358,13 +367,6 @@ class KeyshiftService:
                 on_idle=self._on_idle,
                 close_on_finish=False,
             ):
-                if debug:
-                    logger.debug(
-                        "input event %s value=%d code=%d",
-                        event.name,
-                        event.value,
-                        event.code,
-                    )
                 triggered, buffered, events = (
                     self.emergency_exit_detector.process(event)
                 )

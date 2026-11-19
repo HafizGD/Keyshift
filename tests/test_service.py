@@ -1,5 +1,6 @@
 """Integration tests for the service pipeline with fake devices."""
 
+import logging
 import signal
 
 import pytest
@@ -173,6 +174,23 @@ def test_service_maps_events_and_cleans_up_in_safe_order(
     assert calls.index(("release-all",)) < calls.index(("listener-ungrab-close",))
     assert calls.index(("listener-ungrab-close",)) < calls.index(("output-close",))
     assert service.status()["running"] is False
+
+
+def test_debug_logs_never_include_individual_key_events(
+    monkeypatch, tmp_path, caplog
+) -> None:
+    _, service, device, _ = make_service(
+        monkeypatch,
+        tmp_path,
+        [event("A", 1), event("A", 0)],
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="keyshift"):
+        service.run(device, timeout=1, debug=True)
+
+    assert "key event contents are not logged" in caplog.text
+    assert "KEY_A" not in caplog.text
+    assert "code=30" not in caplog.text
 
 
 def test_service_reloads_configuration_on_sighup_without_restart(

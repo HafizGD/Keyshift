@@ -11,7 +11,9 @@ import typer
 from keyshift import __version__
 from keyshift.config_manager import ConfigError, ConfigManager
 from keyshift import device_manager
+from keyshift import diagnostics
 from keyshift import listener
+from keyshift.logging_config import configure_logging
 from keyshift.mapping_engine import resolve_key
 from keyshift.service import KeyshiftService, ProcessLock, ServiceError
 
@@ -313,6 +315,7 @@ def run_service(
             raise ValueError(
                 "A finite --timeout greater than zero is required for safety."
             )
+        configure_logging(debug=debug)
         state = manager.load_state()
         config = manager.load_profile(profile_name) if profile_name else manager.load_active_config()
         selector = device or state["selected_device"] or config.get("device") or "1"
@@ -354,6 +357,16 @@ def status() -> None:
     typer.echo(f"Shortcuts: {len(config['shortcuts'])}")
     typer.echo(f"Macros: {len(config['macros'])}")
     typer.echo(f"Service running: {'yes' if ProcessLock.is_locked() else 'no'}")
+
+
+@app.command("doctor")
+def doctor() -> None:
+    """Check dependencies, device permissions, uinput, and configuration."""
+    results = diagnostics.run_diagnostics()
+    for result in results:
+        typer.echo(f"[{result.status}] {result.name}: {result.detail}")
+    if any(result.status == "FAIL" for result in results):
+        raise typer.Exit(code=1)
 
 
 @app.command("reset")
