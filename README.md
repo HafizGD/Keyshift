@@ -68,6 +68,11 @@ supports cancellation, and sends output directly to its output sink rather
 than back through the mapping engine. Text key positions use a basic US layout;
 this is not a character-layout translation service.
 
+Configuration uses YAML under `~/.config/keyshift/` (or
+`$XDG_CONFIG_HOME/keyshift/`): `config.yaml`, `state.yaml`, and
+`profiles/<name>.yaml`. Writes are atomic. Invalid files are preserved as
+`.bak` files, reset to defaults, and reported with a recovery warning.
+
 ## Package layout
 
 - `src/keyshift/device_manager.py`: keyboard device discovery and selection

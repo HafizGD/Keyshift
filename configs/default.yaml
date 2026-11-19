@@ -1,1 +1,6 @@
-profiles: {}
+version: 1
+device: null
+remaps: {}
+shortcuts: {}
+macros: {}
+emergency_exit: LeftCtrl+LeftAlt+LeftShift+Esc
