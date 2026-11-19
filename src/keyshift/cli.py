@@ -7,6 +7,7 @@ import typer
 
 from keyshift import __version__
 from keyshift import device_manager
+from keyshift import listener
 
 app = typer.Typer(
     help="Remap and manipulate keyboard input on Linux.",
@@ -76,3 +77,45 @@ def list_devices(
             f"{', '.join(failed_devices)}",
             err=True,
         )
+
+
+@app.command("monitor")
+def monitor(
+    device: str | None = typer.Option(
+        None,
+        "--device",
+        help="Device path, list number, or case-insensitive name fragment.",
+    ),
+    timeout: float | None = typer.Option(
+        None,
+        "--timeout",
+        min=0.1,
+        help="Stop monitoring after this many seconds.",
+    ),
+) -> None:
+    """Print keyboard press, release, and repeat events without grabbing."""
+    try:
+        selected = device_manager.find_device(device or "1")
+        typer.echo(
+            f"Monitoring {selected.name} ({selected.path}) without grab. "
+            "Press Ctrl+C to stop."
+        )
+        with listener.KeyboardListener(selected) as keyboard_listener:
+            for event in keyboard_listener.start(timeout=timeout):
+                state = {0: "release", 1: "press", 2: "repeat"}.get(
+                    event.value, f"value={event.value}"
+                )
+                typer.echo(
+                    f"{event.timestamp:.6f} {event.name} {state}"
+                )
+    except listener.DeviceDisconnectedError as error:
+        typer.echo(f"Device disconnected: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    except device_manager.DeviceError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    except OSError as error:
+        typer.echo(f"Input device I/O error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    typer.echo("Monitor stopped.")

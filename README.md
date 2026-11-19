@@ -35,12 +35,21 @@ pytest
 keyshift --version
 keyshift --help
 keyshift list-devices
+keyshift monitor --timeout 15
 ```
 
 `list-devices` reports readable keyboard devices and accepts `--json` for JSON
-output. It filters event nodes by key capabilities; some keyboards (including
-Bluetooth, KVM, remote desktop, and multi-node devices) may expose different
-capabilities or may not be discoverable as expected.
+output. `monitor` prints key press, release, and repeat events without grabbing
+the device; use `--device` to select by path, list number, or name fragment.
+It accepts a timeout so observation ends automatically. It filters event nodes
+by key capabilities; some keyboards (including Bluetooth, KVM, remote desktop,
+and multi-node devices) may expose different capabilities or may not be
+discoverable as expected.
+
+The listener can optionally grab a device through its library API, which
+prevents the desktop from receiving those physical events. The CLI monitor
+never enables grab. Do not use grab mode until an emergency exit and automatic
+timeout are active, and arrange a backup keyboard or SSH/TTY access first.
 
 ## Package layout
 
