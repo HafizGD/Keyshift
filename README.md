@@ -2,8 +2,8 @@
 
 `keyshift` is a Python library and CLI scaffold for keyboard input remapping on
 Linux. It currently supports physical keyboard discovery, event monitoring,
-and standalone key mapping and virtual keyboard components. The full remapping
-service is not connected yet.
+and standalone key mapping, shortcut, and virtual keyboard components. The full
+remapping service is not connected yet.
 
 ## Requirements
 
@@ -57,6 +57,10 @@ releases held keys when closed. It is not yet connected to a remapping command.
 To prepare uinput access, load the module (`sudo modprobe uinput`) and install
 a udev rule assigning `/dev/uinput` to group `input` with mode `0660`; log out
 and back in after changing group membership.
+
+Shortcut triggers and outputs are based on Linux key codes, not translated
+characters; their behavior therefore depends on the active keyboard layout.
+The shortcut component is not yet connected to the CLI service.
 
 ## Package layout
 
