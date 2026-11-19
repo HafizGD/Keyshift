@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import shutil
@@ -23,6 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "remaps": {},
     "shortcuts": {},
     "macros": {},
+    "temporary_mappings": [],
     "emergency_exit": "LeftCtrl+LeftAlt+LeftShift+Esc",
 }
 DEFAULT_STATE: dict[str, str | None] = {
@@ -35,6 +37,7 @@ _CONFIG_KEYS = {
     "remaps",
     "shortcuts",
     "macros",
+    "temporary_mappings",
     "emergency_exit",
     "metadata",
 }
@@ -114,12 +117,87 @@ def validate_config(config: object) -> dict[str, Any]:
             raise ConfigError("Macro names must be non-empty strings.")
         _validate_macro_steps(name, steps)
 
+    temporary_mappings = config.get("temporary_mappings", [])
+    if not isinstance(temporary_mappings, list):
+        raise ConfigError("temporary_mappings must be a list.")
+    if len(temporary_mappings) > 128:
+        raise ConfigError("temporary_mappings cannot contain more than 128 rules.")
+    temporary_sources: set[int] = set()
+    for index, rule in enumerate(temporary_mappings, start=1):
+        location = f"temporary_mappings[{index}]"
+        if not isinstance(rule, dict):
+            raise ConfigError(f"{location} must be a mapping.")
+        if any(not isinstance(key, str) for key in rule):
+            raise ConfigError(f"{location} keys must be strings.")
+        mode = rule.get("mode")
+        if mode not in ("duration", "toggle", "layer"):
+            raise ConfigError(f"{location}.mode must be duration, toggle, or layer.")
+        required = {"mode", "source", "target"}
+        if mode == "duration":
+            allowed = required | {"duration"}
+        else:
+            allowed = required | {"trigger"}
+        extra = set(rule) - allowed
+        missing = allowed - set(rule)
+        if extra or missing:
+            details = []
+            if missing:
+                details.append(f"missing {', '.join(sorted(missing))}")
+            if extra:
+                details.append(f"unknown {', '.join(sorted(extra))}")
+            raise ConfigError(f"{location}: {'; '.join(details)}.")
+        for key in ("source", "target"):
+            if not isinstance(rule[key], str):
+                raise ConfigError(f"{location}.{key} must be a key-name string.")
+            try:
+                resolve_key(rule[key])
+            except ValueError as error:
+                raise ConfigError(f"{location}.{key}: {error}") from error
+        source_code = resolve_key(rule["source"])
+        if source_code in temporary_sources:
+            raise ConfigError(
+                f"{location}.source duplicates another temporary mapping source."
+            )
+        temporary_sources.add(source_code)
+        if mode == "duration":
+            duration = rule["duration"]
+            if (
+                not isinstance(duration, (int, float))
+                or isinstance(duration, bool)
+                or duration <= 0
+                or duration > 86_400
+                or not math.isfinite(duration)
+            ):
+                raise ConfigError(
+                    f"{location}.duration must be greater than 0 and at most 86400 seconds."
+                )
+        else:
+            if not isinstance(rule["trigger"], str):
+                raise ConfigError(f"{location}.trigger must be a key-name string.")
+            try:
+                resolve_key(rule["trigger"])
+            except ValueError as error:
+                raise ConfigError(f"{location}.trigger: {error}") from error
+
     emergency_exit = config.get(
         "emergency_exit",
         DEFAULT_CONFIG["emergency_exit"],
     )
     if not isinstance(emergency_exit, str) or not emergency_exit.strip():
         raise ConfigError("emergency_exit must be a non-empty shortcut string.")
+    emergency_keys = [part.strip() for part in emergency_exit.split("+")]
+    if (
+        len(emergency_keys) < 2
+        or len(emergency_keys) > 8
+        or any(not part for part in emergency_keys)
+    ):
+        raise ConfigError("emergency_exit must contain 2 to 8 key names.")
+    try:
+        resolved_emergency = [resolve_key(key) for key in emergency_keys]
+    except ValueError as error:
+        raise ConfigError(f"Invalid emergency_exit: {error}") from error
+    if len(set(resolved_emergency)) != len(resolved_emergency):
+        raise ConfigError("emergency_exit cannot repeat a key.")
 
     metadata = config.get("metadata")
     if metadata is not None:
@@ -141,6 +219,7 @@ def validate_config(config: object) -> dict[str, Any]:
     validated["remaps"] = deepcopy(remaps)
     validated["shortcuts"] = deepcopy(shortcuts)
     validated["macros"] = deepcopy(macros)
+    validated["temporary_mappings"] = deepcopy(temporary_mappings)
     validated["emergency_exit"] = emergency_exit
     return validated
 

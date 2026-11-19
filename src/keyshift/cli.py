@@ -1,7 +1,10 @@
 """Typer command-line interface for keyshift."""
 
 import json
+import math
+import re
 from dataclasses import asdict
+from typing import Any
 
 import typer
 
@@ -10,7 +13,7 @@ from keyshift.config_manager import ConfigError, ConfigManager
 from keyshift import device_manager
 from keyshift import listener
 from keyshift.mapping_engine import resolve_key
-from keyshift.service import KeyshiftService, ServiceError
+from keyshift.service import KeyshiftService, ProcessLock, ServiceError
 
 app = typer.Typer(
     help="Remap and manipulate keyboard input on Linux.",
@@ -125,19 +128,76 @@ def monitor(
 
 
 @app.command("remap")
-def remap(source: str, target: str) -> None:
-    """Save a key remapping in the active profile or global configuration."""
+def remap(
+    source: str,
+    target: str,
+    for_duration: str | None = typer.Option(
+        None,
+        "--for",
+        help="Temporarily map for a duration such as 10m or 30s.",
+    ),
+    toggle: str | None = typer.Option(None, "--toggle"),
+    while_held: str | None = typer.Option(None, "--while-held"),
+) -> None:
+    """Save a permanent or temporary key remapping."""
     try:
         manager = ConfigManager()
         config = manager.load_active_config()
-        remaps = dict(config["remaps"])
-        remaps[source] = target
-        config["remaps"] = remaps
+        temporary_modes = sum(
+            (for_duration is not None, toggle is not None, while_held is not None)
+        )
+        if temporary_modes > 1:
+            raise ConfigError("Choose only one temporary remapping mode.")
+        if for_duration is not None:
+            duration = _parse_duration(for_duration)
+            _replace_temporary_mapping(
+                config,
+                source,
+                {
+                    "mode": "duration",
+                    "source": source,
+                    "target": target,
+                    "duration": duration,
+                },
+            )
+        elif toggle is not None:
+            _replace_temporary_mapping(
+                config,
+                source,
+                {
+                    "mode": "toggle",
+                    "source": source,
+                    "target": target,
+                    "trigger": toggle,
+                },
+            )
+        elif while_held is not None:
+            _replace_temporary_mapping(
+                config,
+                source,
+                {
+                    "mode": "layer",
+                    "source": source,
+                    "target": target,
+                    "trigger": while_held,
+                },
+            )
+        else:
+            remaps = dict(config["remaps"])
+            remaps[source] = target
+            config["remaps"] = remaps
         _save_active_config(manager, config)
     except (ConfigError, ValueError) as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1) from error
-    typer.echo(f"Mapped {source} to {target}.")
+    if for_duration is not None:
+        typer.echo(f"Temporarily mapped {source} to {target} for {for_duration}.")
+    elif toggle is not None:
+        typer.echo(f"Mapped {source} to {target}, toggled by {toggle}.")
+    elif while_held is not None:
+        typer.echo(f"Mapped {source} to {target} while {while_held} is held.")
+    else:
+        typer.echo(f"Mapped {source} to {target}.")
 
 
 @app.command("unmap")
@@ -153,12 +213,19 @@ def unmap(key: str) -> None:
             for source in remaps
             if resolve_key(source) == code
         ]
-        if not matching:
+        old_temporary = list(config["temporary_mappings"])
+        temporary = [
+            rule
+            for rule in old_temporary
+            if resolve_key(rule["source"]) != code
+        ]
+        if not matching and len(temporary) == len(old_temporary):
             typer.echo(f"No remapping configured for {key}.")
             return
         for source in matching:
             remaps.pop(source)
         config["remaps"] = remaps
+        config["temporary_mappings"] = temporary
         _save_active_config(manager, config)
     except (ConfigError, ValueError) as error:
         typer.echo(f"Error: {error}", err=True)
@@ -232,11 +299,20 @@ def run_service(
         min=0.1,
         help="Stop the service after this many seconds.",
     ),
+    reconnect: bool = typer.Option(
+        False,
+        "--reconnect",
+        help="Wait for the selected physical keyboard to reconnect.",
+    ),
     debug: bool = typer.Option(False, "--debug"),
 ) -> None:
     """Run remapping with exclusive input grab and virtual output."""
     manager = ConfigManager()
     try:
+        if timeout is None or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError(
+                "A finite --timeout greater than zero is required for safety."
+            )
         state = manager.load_state()
         config = manager.load_profile(profile_name) if profile_name else manager.load_active_config()
         selector = device or state["selected_device"] or config.get("device") or "1"
@@ -250,6 +326,7 @@ def run_service(
             timeout=timeout,
             profile=profile_name,
             debug=debug,
+            reconnect=reconnect,
         )
     except (
         ConfigError,
@@ -273,8 +350,10 @@ def status() -> None:
         f"Selected device: {state['selected_device'] or config.get('device') or 'automatic'}"
     )
     typer.echo(f"Remaps: {len(config['remaps'])}")
+    typer.echo(f"Temporary mappings: {len(config['temporary_mappings'])}")
     typer.echo(f"Shortcuts: {len(config['shortcuts'])}")
     typer.echo(f"Macros: {len(config['macros'])}")
+    typer.echo(f"Service running: {'yes' if ProcessLock.is_locked() else 'no'}")
 
 
 @app.command("reset")
@@ -292,3 +371,28 @@ def _save_active_config(manager: ConfigManager, config: dict) -> None:
         manager.save_profile(active_profile, config)
     else:
         manager.save_global(config)
+
+
+def _parse_duration(value: str) -> int:
+    match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", value.strip().casefold())
+    if match is None:
+        raise ConfigError("Duration must use a positive value with s, m, or h.")
+    amount = int(match.group(1))
+    seconds = amount * {"s": 1, "m": 60, "h": 3600}[match.group(2)]
+    if seconds > 86_400:
+        raise ConfigError("Temporary duration cannot exceed 24 hours.")
+    return seconds
+
+
+def _replace_temporary_mapping(
+    config: dict[str, Any],
+    source: str,
+    rule: dict[str, Any],
+) -> None:
+    source_code = resolve_key(source)
+    config["temporary_mappings"] = [
+        item
+        for item in config["temporary_mappings"]
+        if resolve_key(item["source"]) != source_code
+    ]
+    config["temporary_mappings"].append(rule)

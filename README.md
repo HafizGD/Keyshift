@@ -1,24 +1,43 @@
 # keyshift
 
-`keyshift` is a Python library and CLI scaffold for keyboard input remapping on
-Linux. It currently supports physical keyboard discovery, event monitoring,
-and standalone key mapping, shortcut, and virtual keyboard components. The full
-remapping service is not connected yet.
+`keyshift` is a Python library and CLI for remapping Linux keyboard input
+through a virtual keyboard. It uses evdev input event devices and `/dev/uinput`;
+it does not modify keyboard firmware.
 
-## Requirements
+Compatibility depends on kernel device capabilities, permissions, desktop
+environment, and keyboard layout. A physical keyboard may expose multiple
+event nodes, while Bluetooth keyboards, KVM switches, remote desktops, or
+unusual devices may not be discoverable or behave as expected.
 
-- Linux with Python 3.10 or newer
-- Access to keyboard input devices for future hardware features
+## Safety and permissions
 
-Device permissions, desktop environments, and keyboard capabilities vary.
-Compatibility with every keyboard or desktop environment is not guaranteed.
-Future input handling must provide an emergency reset and avoid leaving
-physical input devices grabbed.
-
-Reading `/dev/input/event*` devices can expose all keystrokes, including
-passwords. Only grant the `input` group to trusted users, and do not run
-untrusted code as a user in that group. Group membership takes effect after
+Reading `/dev/input/event*` can expose every keystroke, including passwords.
+Members of the `input` group should run only trusted software. Keyboard input
+nodes are commonly owned by that group; group changes take effect after
 logging out and back in.
+
+`keyshift run` exclusively grabs its selected input device. It requires a
+finite `--timeout`, creates the virtual output before grabbing input, and
+releases held virtual keys and the grab on shutdown. The default emergency
+chord is `LeftCtrl+LeftAlt+LeftShift+Esc`, held together for one second. A
+custom chord can be set in the configuration. Keep a backup keyboard or
+another way to stop the process available, and do not test remapping on a
+critical system before reviewing the configuration.
+
+To prepare `/dev/uinput` access, load the kernel module and install a udev rule
+that grants the `input` group access with mode `0660`. For example:
+
+```shell
+sudo modprobe uinput
+sudo tee /etc/udev/rules.d/99-keyshift.rules >/dev/null <<'EOF'
+KERNEL=="uinput", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput"
+EOF
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+Add your account to `input` only if you understand the keystroke-access risk.
+Do not grant permanent root privileges to keyshift.
 
 ## Development setup
 
@@ -36,39 +55,52 @@ pytest
 keyshift --version
 keyshift --help
 keyshift list-devices
-keyshift monitor --timeout 15
+keyshift list-devices --json
+keyshift monitor --device 1 --timeout 15
+keyshift remap CapsLock Ctrl
+keyshift remap A B --for 10m
+keyshift remap A B --toggle F1
+keyshift remap A B --while-held CapsLock
+keyshift unmap A
+keyshift profile --create gaming
+keyshift profile gaming
+keyshift select-device 1
+keyshift status
+keyshift run --device 1 --timeout 60
+keyshift run --device 1 --timeout 60 --reconnect
+keyshift reset --force
 ```
 
-`list-devices` reports readable keyboard devices and accepts `--json` for JSON
-output. `monitor` prints key press, release, and repeat events without grabbing
-the device; use `--device` to select by path, list number, or name fragment.
-It accepts a timeout so observation ends automatically. It filters event nodes
-by key capabilities; some keyboards (including Bluetooth, KVM, remote desktop,
-and multi-node devices) may expose different capabilities or may not be
-discoverable as expected.
+`list-devices` filters event nodes by keyboard key capabilities. `monitor`
+prints press, release, and repeat events without grabbing the device. `run`
+applies configured mappings, shortcuts, and macros; it grabs the selected
+input device and uses `/dev/uinput` for output. Only one service instance can
+run at a time. `--reconnect` waits for the selected physical keyboard to
+reappear, up to the run timeout.
 
-The listener can optionally grab a device through its library API, which
-prevents the desktop from receiving those physical events. The CLI monitor
-never enables grab. Do not use grab mode until an emergency exit and automatic
-timeout are active, and arrange a backup keyboard or SSH/TTY access first.
+Remaps are stored in the active profile or global configuration. Temporary
+remaps support a fixed duration (`--for`, using `s`, `m`, or `h`, capped at 24
+hours), a toggle key (`--toggle`), or a held layer key (`--while-held`). A
+temporary remap overrides a permanent remap for the same source key.
 
-The `VirtualKeyboard` library API writes output through `/dev/uinput` and
-releases held keys when closed. It is not yet connected to a remapping command.
-To prepare uinput access, load the module (`sudo modprobe uinput`) and install
-a udev rule assigning `/dev/uinput` to group `input` with mode `0660`; log out
-and back in after changing group membership.
+The emergency chord is configurable in `config.yaml`, for example:
 
-Shortcut triggers and outputs are based on Linux key codes, not translated
-characters; their behavior therefore depends on the active keyboard layout.
-The shortcut component is not yet connected to the CLI service.
+```yaml
+emergency_exit: LeftCtrl+LeftAlt+LeftShift+Esc
+temporary_mappings:
+  - mode: layer
+    source: A
+    target: B
+    trigger: CapsLock
+```
 
-`MacroEngine` can execute validated key-down, key-up, tap, delay, and simple
-ASCII text steps in a worker thread. It bounds step count and total delay,
-supports cancellation, and sends output directly to its output sink rather
-than back through the mapping engine. Text key positions use a basic US layout;
-this is not a character-layout translation service.
+Shortcut triggers and outputs use Linux key codes rather than translated
+characters, so behavior depends on the active layout. Macro text entry uses a
+basic US key layout, not a character-layout translation service.
 
-Configuration uses YAML under `~/.config/keyshift/` (or
+## Configuration and profiles
+
+YAML configuration is stored under `~/.config/keyshift/` (or
 `$XDG_CONFIG_HOME/keyshift/`): `config.yaml`, `state.yaml`, and
 `profiles/<name>.yaml`. Writes are atomic. Invalid files are preserved as
 `.bak` files, reset to defaults, and reported with a recovery warning.
@@ -77,10 +109,11 @@ Configuration uses YAML under `~/.config/keyshift/` (or
 
 - `src/keyshift/device_manager.py`: keyboard device discovery and selection
 - `src/keyshift/listener.py`: input event reading
-- `src/keyshift/mapping_engine.py`: key remapping
+- `src/keyshift/mapping_engine.py`: key remapping and temporary mapping modes
 - `src/keyshift/shortcut_manager.py`: shortcut mapping
 - `src/keyshift/macro_engine.py`: macro execution
 - `src/keyshift/virtual_keyboard.py`: virtual keyboard output
 - `src/keyshift/config_manager.py`: configuration and profiles
+- `src/keyshift/service.py`: safe service lifecycle and event pipeline
 - `src/keyshift/cli.py`: Typer command-line interface
 - `configs/default.yaml`: starter configuration

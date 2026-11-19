@@ -1,6 +1,8 @@
 """Pure-Python key-name resolution and stateful key remapping."""
 
-from collections.abc import Mapping
+import math
+import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Protocol
@@ -202,6 +204,7 @@ class MappingEngine:
         mappings: Mapping[str | int, str | int] | None = None,
     ) -> None:
         self._mappings: dict[int, int] = {}
+        self._temporary_mappings: dict[int, int] = {}
         self._held_targets: dict[int, int] = {}
         if mappings:
             self.set_mappings(mappings)
@@ -229,27 +232,42 @@ class MappingEngine:
         """Remove one mapping and report whether it existed."""
         return self._mappings.pop(resolve_key(source), None) is not None
 
+    def set_temporary_mappings(
+        self,
+        mappings: Mapping[str | int, str | int],
+    ) -> None:
+        """Replace active temporary overrides, which take precedence."""
+        self._temporary_mappings = {
+            resolve_key(source): resolve_key(target)
+            for source, target in mappings.items()
+        }
+
+    def reset_held_keys(self) -> None:
+        """Forget physical keys held before an input-device interruption."""
+        self._held_targets.clear()
+
     def process(self, event: KeyEventLike) -> list[OutputEvent]:
         """Map one press, release, or repeat while preserving key pairing."""
         if event.value not in (0, 1, 2):
             raise ValueError(f"Unsupported key event value: {event.value}")
 
         source_code = event.code
+        mappings = self._mappings | self._temporary_mappings
         if event.value == 1:
             target_code = self._held_targets.get(
                 source_code,
-                self._mappings.get(source_code, source_code),
+                mappings.get(source_code, source_code),
             )
             self._held_targets[source_code] = target_code
         elif event.value == 0:
             target_code = self._held_targets.pop(
                 source_code,
-                self._mappings.get(source_code, source_code),
+                mappings.get(source_code, source_code),
             )
         else:
             target_code = self._held_targets.get(
                 source_code,
-                self._mappings.get(source_code, source_code),
+                mappings.get(source_code, source_code),
             )
 
         output_name = (
@@ -265,3 +283,129 @@ class MappingEngine:
                 timestamp=event.timestamp,
             )
         ]
+
+
+@dataclass
+class _TemporaryRule:
+    source: int
+    target: int
+    mode: str
+    trigger: int | None = None
+    expires_at: float | None = None
+    enabled: bool = False
+
+
+class TemporaryMappingManager:
+    """Track duration, toggle, and held-layer mapping overrides."""
+
+    def __init__(
+        self,
+        rules: list[Mapping[str, object]] | None = None,
+        *,
+        clock: Callable[[], float] | None = None,
+    ) -> None:
+        self._clock = clock or time.monotonic
+        self._pressed: set[int] = set()
+        self._consumed_triggers: set[int] = set()
+        now = self._clock()
+        self._rules: list[_TemporaryRule] = []
+        for rule in rules or []:
+            if not isinstance(rule, Mapping):
+                raise ValueError("Each temporary mapping rule must be a mapping.")
+            mode = rule.get("mode")
+            if mode not in ("duration", "toggle", "layer"):
+                raise ValueError(
+                    "Temporary mapping mode must be duration, toggle, or layer."
+                )
+            source_value = rule.get("source")
+            target_value = rule.get("target")
+            if (
+                not isinstance(source_value, (str, int))
+                or isinstance(source_value, bool)
+                or not isinstance(target_value, (str, int))
+                or isinstance(target_value, bool)
+            ):
+                raise ValueError("Temporary mapping source and target must be key names.")
+            source = resolve_key(source_value)
+            target = resolve_key(target_value)
+            trigger: int | None = None
+            if mode in ("toggle", "layer"):
+                trigger_value = rule.get("trigger")
+                if (
+                    not isinstance(trigger_value, (str, int))
+                    or isinstance(trigger_value, bool)
+                ):
+                    raise ValueError("Temporary mapping trigger must be a key name.")
+                trigger = resolve_key(trigger_value)
+            expires_at = None
+            if mode == "duration":
+                duration = rule.get("duration")
+                if (
+                    not isinstance(duration, (int, float))
+                    or isinstance(duration, bool)
+                    or duration <= 0
+                    or duration > 86_400
+                    or not math.isfinite(duration)
+                ):
+                    raise ValueError(
+                        "Temporary mapping duration must be greater than 0 "
+                        "and at most 86400 seconds."
+                    )
+                expires_at = now + float(duration)
+            self._rules.append(
+                _TemporaryRule(
+                    source=source,
+                    target=target,
+                    mode=mode,
+                    trigger=trigger,
+                    expires_at=expires_at,
+                )
+            )
+
+    def process(self, event: KeyEventLike) -> bool:
+        """Update toggle/layer state and report whether this key is consumed."""
+        if event.value == 1:
+            self._pressed.add(event.code)
+        elif event.value == 0:
+            self._pressed.discard(event.code)
+
+        triggered = False
+        for rule in self._rules:
+            if rule.trigger != event.code:
+                continue
+            if rule.mode == "toggle" and event.value == 1:
+                rule.enabled = not rule.enabled
+                self._consumed_triggers.add(event.code)
+                triggered = True
+            elif rule.mode == "layer":
+                if event.value == 1:
+                    self._consumed_triggers.add(event.code)
+                    triggered = True
+                elif event.value == 0 and event.code in self._consumed_triggers:
+                    triggered = True
+
+        if event.code in self._consumed_triggers:
+            triggered = True
+            if event.value == 0:
+                self._consumed_triggers.discard(event.code)
+        return triggered
+
+    def active_mappings(self) -> dict[int, int]:
+        """Return currently active source-to-target overrides."""
+        now = self._clock()
+        mappings: dict[int, int] = {}
+        for rule in self._rules:
+            if rule.mode == "duration":
+                active = rule.expires_at is not None and now < rule.expires_at
+            elif rule.mode == "toggle":
+                active = rule.enabled
+            else:
+                active = rule.trigger in self._pressed
+            if active:
+                mappings[rule.source] = rule.target
+        return mappings
+
+    def reset_held_state(self) -> None:
+        """Clear held trigger keys while preserving toggled mappings."""
+        self._pressed.clear()
+        self._consumed_triggers.clear()

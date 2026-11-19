@@ -3,4 +3,5 @@ device: null
 remaps: {}
 shortcuts: {}
 macros: {}
+temporary_mappings: []
 emergency_exit: LeftCtrl+LeftAlt+LeftShift+Esc

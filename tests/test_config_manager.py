@@ -48,6 +48,56 @@ def test_config_round_trip_and_strict_validation(tmp_path) -> None:
         )
 
 
+def test_temporary_mapping_schema_validates_modes_duration_and_unique_sources(
+    tmp_path,
+) -> None:
+    path = tmp_path / "config.yaml"
+    config = default_config()
+    config["temporary_mappings"] = [
+        {
+            "mode": "duration",
+            "source": "A",
+            "target": "B",
+            "duration": 30,
+        }
+    ]
+
+    save_config(path, config)
+    assert load_config(path)["temporary_mappings"] == config["temporary_mappings"]
+
+    with pytest.raises(ConfigError, match="duration must be greater than 0"):
+        save_config(
+            path,
+            {
+                **config,
+                "temporary_mappings": [
+                    {
+                        "mode": "duration",
+                        "source": "A",
+                        "target": "B",
+                        "duration": float("inf"),
+                    }
+                ],
+            },
+        )
+    with pytest.raises(ConfigError, match="duplicates another temporary mapping"):
+        save_config(
+            path,
+            {
+                **config,
+                "temporary_mappings": [
+                    config["temporary_mappings"][0],
+                    {
+                        "mode": "toggle",
+                        "source": "KEY_A",
+                        "target": "C",
+                        "trigger": "F1",
+                    },
+                ],
+            },
+        )
+
+
 def test_corrupt_global_config_is_backed_up_and_reset(tmp_path) -> None:
     manager = ConfigManager(tmp_path)
     manager.directory.mkdir(parents=True, exist_ok=True)

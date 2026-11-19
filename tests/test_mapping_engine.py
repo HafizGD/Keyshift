@@ -6,6 +6,7 @@ import pytest
 
 from keyshift.mapping_engine import (
     MappingEngine,
+    TemporaryMappingManager,
     UnknownKeyError,
     resolve_key,
 )
@@ -88,3 +89,71 @@ def test_mapping_table_replacement_and_removal() -> None:
 def test_unknown_mapping_is_rejected_without_evdev() -> None:
     with pytest.raises(UnknownKeyError):
         MappingEngine({"NOT_A_KEY": "A"})
+
+
+def test_temporary_duration_mapping_expires_and_overrides_permanent_mapping() -> None:
+    now = [5.0]
+    temporary = TemporaryMappingManager(
+        [
+            {
+                "mode": "duration",
+                "source": "A",
+                "target": "B",
+                "duration": 10,
+            }
+        ],
+        clock=lambda: now[0],
+    )
+    engine = MappingEngine({"A": "C"})
+
+    engine.set_temporary_mappings(temporary.active_mappings())
+    active = engine.process(event(resolve_key("A"), 1))[0]
+    now[0] = 15.0
+    engine.set_temporary_mappings(temporary.active_mappings())
+    paired_release = engine.process(event(resolve_key("A"), 0))[0]
+    expired = engine.process(event(resolve_key("A"), 1))[0]
+
+    assert active.code == resolve_key("B")
+    assert paired_release.code == resolve_key("B")
+    assert expired.code == resolve_key("C")
+
+
+def test_temporary_toggle_consumes_trigger_and_toggles_mapping() -> None:
+    temporary = TemporaryMappingManager(
+        [
+            {
+                "mode": "toggle",
+                "source": "A",
+                "target": "B",
+                "trigger": "F1",
+            }
+        ]
+    )
+    trigger = event(resolve_key("F1"), 1, "KEY_F1")
+
+    assert temporary.process(trigger)
+    assert temporary.active_mappings() == {resolve_key("A"): resolve_key("B")}
+    assert temporary.process(event(resolve_key("F1"), 0, "KEY_F1"))
+    assert temporary.active_mappings() == {resolve_key("A"): resolve_key("B")}
+    assert temporary.process(trigger)
+    assert temporary.active_mappings() == {}
+
+
+def test_temporary_layer_is_active_only_while_trigger_is_held() -> None:
+    temporary = TemporaryMappingManager(
+        [
+            {
+                "mode": "layer",
+                "source": "A",
+                "target": "B",
+                "trigger": "CapsLock",
+            }
+        ]
+    )
+
+    assert temporary.process(event(resolve_key("CapsLock"), 1, "KEY_CAPSLOCK"))
+    assert temporary.active_mappings() == {
+        resolve_key("A"): resolve_key("B")
+    }
+    assert temporary.process(event(resolve_key("CapsLock"), 0, "KEY_CAPSLOCK"))
+    assert temporary.active_mappings() == {}
