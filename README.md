@@ -51,6 +51,12 @@ prevents the desktop from receiving those physical events. The CLI monitor
 never enables grab. Do not use grab mode until an emergency exit and automatic
 timeout are active, and arrange a backup keyboard or SSH/TTY access first.
 
+The `VirtualKeyboard` library API writes output through `/dev/uinput` and
+releases held keys when closed. It is not yet connected to a remapping command.
+To prepare uinput access, load the module (`sudo modprobe uinput`) and install
+a udev rule assigning `/dev/uinput` to group `input` with mode `0660`; log out
+and back in after changing group membership.
+
 ## Package layout
 
 - `src/keyshift/device_manager.py`: keyboard device discovery and selection
