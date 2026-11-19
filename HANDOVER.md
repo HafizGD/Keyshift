@@ -50,9 +50,20 @@ No kernel modules, group membership, or device permissions were changed.
 
 ## Pull request and CI
 
-At initial report preparation, commit/push/PR and Actions verification are still
-pending. Replace this status with observed links and results after publication.
+Commits `6ec8767` and `e5e6b96` were created and pushed successfully. The remote
+branch matches local HEAD at `e5e6b967e15fb4ac59265054d25ee7f86ad6c77e` as of
+that push verification.
+
+PR creation is currently blocked: the GitHub connector returned HTTP 403
+`Resource not accessible by integration`; automatic approval review rejected
+reuse of the Git helper credential for direct API requests without specific
+approval, and browser automation failed to initialize. The proposed
+[PR description](docs/PR_DESCRIPTION.md) is ready. See
+[progress](docs/PROGRESS.md) for the latest publication state.
+
 The CI matrix is Python 3.10-3.13 and runs tests, build, and twine checks.
+No PR-associated run has yet been verified. Do not claim CI is green until
+checks on the latest PR revision have actually completed.
 
 ## Approval boundary
 

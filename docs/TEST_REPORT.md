@@ -63,5 +63,14 @@ Local Python 3.14 testing is additional evidence, not a substitute for this matr
 The feature-branch push alone does not trigger the current push filter, which is
 restricted to `main`; opening the PR triggers the matrix.
 
-CI status at initial report preparation: not yet observed for a PR from this
-branch. The verified run and PR links will be recorded after creation.
+Publication verification: commits `6ec8767` and `e5e6b96` were pushed successfully.
+For pushed commit `e5e6b967e15fb4ac59265054d25ee7f86ad6c77e`, the GitHub connector
+returned `workflow_runs: []` and `statuses: []`. This means no PR CI run or
+legacy status was observed; it is not a passing CI result.
+
+PR creation was denied by the connector with HTTP 403,
+`Resource not accessible by integration`. Automatic approval review also
+rejected the proposed Git-helper credential use for direct API authentication
+without specific user approval, before that fallback ran. Browser automation
+failed to initialize. PR creation and the CI matrix remain pending until an
+authorized working route is available. See [PROGRESS.md](PROGRESS.md).
