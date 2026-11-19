@@ -62,6 +62,12 @@ Shortcut triggers and outputs are based on Linux key codes, not translated
 characters; their behavior therefore depends on the active keyboard layout.
 The shortcut component is not yet connected to the CLI service.
 
+`MacroEngine` can execute validated key-down, key-up, tap, delay, and simple
+ASCII text steps in a worker thread. It bounds step count and total delay,
+supports cancellation, and sends output directly to its output sink rather
+than back through the mapping engine. Text key positions use a basic US layout;
+this is not a character-layout translation service.
+
 ## Package layout
 
 - `src/keyshift/device_manager.py`: keyboard device discovery and selection
