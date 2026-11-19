@@ -1,12 +1,12 @@
-"""Typer command-line interface for keymapper."""
+"""Typer command-line interface for keyshift."""
 
 import json
 from dataclasses import asdict
 
 import typer
 
-from keymapper import __version__
-from keymapper import device_manager
+from keyshift import __version__
+from keyshift import device_manager
 
 app = typer.Typer(
     help="Remap and manipulate keyboard input on Linux.",
@@ -17,7 +17,7 @@ app = typer.Typer(
 def version_callback(value: bool) -> None:
     """Print the package version and exit when requested."""
     if value:
-        typer.echo(f"keymapper {__version__}")
+        typer.echo(f"keyshift {__version__}")
         raise typer.Exit()
 
 

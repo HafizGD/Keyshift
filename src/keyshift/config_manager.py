@@ -1,4 +1,4 @@
-"""Load and save keymapper configuration and profiles."""
+"""Load and save keyshift configuration and profiles."""
 
 from pathlib import Path
 

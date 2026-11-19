@@ -1,6 +1,6 @@
-# keymapper
+# keyshift
 
-`keymapper` is a Python library and CLI scaffold for keyboard input remapping on
+`keyshift` is a Python library and CLI scaffold for keyboard input remapping on
 Linux. The initial release supports physical keyboard discovery; event
 listening and remapping are not implemented yet.
 
@@ -32,9 +32,9 @@ pytest
 ## CLI
 
 ```shell
-keymapper --version
-keymapper --help
-keymapper list-devices
+keyshift --version
+keyshift --help
+keyshift list-devices
 ```
 
 `list-devices` reports readable keyboard devices and accepts `--json` for JSON
@@ -44,12 +44,12 @@ capabilities or may not be discoverable as expected.
 
 ## Package layout
 
-- `src/keymapper/device_manager.py`: keyboard device discovery and selection
-- `src/keymapper/listener.py`: input event reading
-- `src/keymapper/mapping_engine.py`: key remapping
-- `src/keymapper/shortcut_manager.py`: shortcut mapping
-- `src/keymapper/macro_engine.py`: macro execution
-- `src/keymapper/virtual_keyboard.py`: virtual keyboard output
-- `src/keymapper/config_manager.py`: configuration and profiles
-- `src/keymapper/cli.py`: Typer command-line interface
+- `src/keyshift/device_manager.py`: keyboard device discovery and selection
+- `src/keyshift/listener.py`: input event reading
+- `src/keyshift/mapping_engine.py`: key remapping
+- `src/keyshift/shortcut_manager.py`: shortcut mapping
+- `src/keyshift/macro_engine.py`: macro execution
+- `src/keyshift/virtual_keyboard.py`: virtual keyboard output
+- `src/keyshift/config_manager.py`: configuration and profiles
+- `src/keyshift/cli.py`: Typer command-line interface
 - `configs/default.yaml`: starter configuration

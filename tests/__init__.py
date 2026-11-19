@@ -1,1 +1,1 @@
-"""Tests for the keymapper package."""
+"""Tests for the keyshift package."""

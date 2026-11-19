@@ -7,7 +7,7 @@ import evdev
 import pytest
 from typer.testing import CliRunner
 
-from keymapper import cli, device_manager
+from keyshift import cli, device_manager
 
 
 class FakeDevice:

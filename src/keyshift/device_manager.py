@@ -4,7 +4,7 @@ import glob
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-VIRTUAL_DEVICE_NAME = "keymapper-virtual-keyboard"
+VIRTUAL_DEVICE_NAME = "keyshift-virtual-keyboard"
 
 
 @dataclass(frozen=True)
