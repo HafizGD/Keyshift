@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 from keyshift.device_manager import DeviceError, DeviceInfo, VIRTUAL_DEVICE_NAME
 
 
@@ -29,6 +31,7 @@ class VirtualKeyboard:
         self._uinput = None
         self._evdev = None
         self._held_keys: dict[int, None] = {}
+        self._lock = threading.RLock()
 
     def __enter__(self) -> VirtualKeyboard:
         self._open()
@@ -40,62 +43,69 @@ class VirtualKeyboard:
 
     def press(self, code: int) -> None:
         """Press a key once; repeated calls while held do not duplicate it."""
-        self._ensure_open()
-        if code not in self._held_keys:
-            self.emit(code, 1)
+        with self._lock:
+            self._ensure_open()
+            if code not in self._held_keys:
+                self.emit(code, 1)
 
     def release(self, code: int) -> None:
         """Release a key previously pressed by this virtual keyboard."""
-        self._ensure_open()
-        if code in self._held_keys:
-            self.emit(code, 0)
+        with self._lock:
+            self._ensure_open()
+            if code in self._held_keys:
+                self.emit(code, 0)
 
     def tap(self, code: int) -> None:
         """Press and release a key."""
-        self.press(code)
-        self.release(code)
+        with self._lock:
+            self.press(code)
+            self.release(code)
 
     def emit(self, code: int, value: int) -> None:
         """Emit an EV_KEY event with a Linux key value (0, 1, or 2)."""
         if value not in (0, 1, 2):
             raise ValueError("key event value must be 0 (release), 1 (press), or 2 (repeat)")
-        self._ensure_open()
-        self._uinput.write(self._evdev.ecodes.EV_KEY, code, value)
-        self._uinput.syn()
-        if value == 1:
-            self._held_keys[code] = None
-        elif value == 0:
-            self._held_keys.pop(code, None)
+        with self._lock:
+            self._ensure_open()
+            self._uinput.write(self._evdev.ecodes.EV_KEY, code, value)
+            self._uinput.syn()
+            if value == 1:
+                self._held_keys[code] = None
+            elif value == 0:
+                self._held_keys.pop(code, None)
 
     def syn(self) -> None:
         """Flush pending virtual input events to the kernel."""
-        self._ensure_open()
-        self._uinput.syn()
+        with self._lock:
+            self._ensure_open()
+            self._uinput.syn()
 
     def release_all(self) -> None:
         """Release every key held by this virtual keyboard."""
-        if self._uinput is None:
-            self._held_keys.clear()
-            return
-        if not self._held_keys:
-            return
+        with self._lock:
+            if self._uinput is None:
+                self._held_keys.clear()
+                return
+            if not self._held_keys:
+                return
 
-        for code in self._held_keys:
-            self._uinput.write(self._evdev.ecodes.EV_KEY, code, 0)
-        self._uinput.syn()
-        self._held_keys.clear()
+            for code in self._held_keys:
+                self._uinput.write(self._evdev.ecodes.EV_KEY, code, 0)
+            self._uinput.syn()
+            self._held_keys.clear()
 
     def close(self) -> None:
         """Release held keys and destroy the virtual input device."""
-        if self._uinput is None:
-            return
-        uinput = self._uinput
-        try:
-            self.release_all()
-        finally:
-            self._held_keys.clear()
-            self._uinput = None
-            uinput.close()
+        with self._lock:
+            if self._uinput is None:
+                return
+            uinput = self._uinput
+            try:
+                self.release_all()
+            finally:
+                self._held_keys.clear()
+                self._uinput = None
+                uinput.close()
 
     def _ensure_open(self) -> None:
         if self._uinput is None:

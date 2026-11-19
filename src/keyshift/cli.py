@@ -6,8 +6,11 @@ from dataclasses import asdict
 import typer
 
 from keyshift import __version__
+from keyshift.config_manager import ConfigError, ConfigManager
 from keyshift import device_manager
 from keyshift import listener
+from keyshift.mapping_engine import resolve_key
+from keyshift.service import KeyshiftService, ServiceError
 
 app = typer.Typer(
     help="Remap and manipulate keyboard input on Linux.",
@@ -119,3 +122,173 @@ def monitor(
         raise typer.Exit(code=1) from error
 
     typer.echo("Monitor stopped.")
+
+
+@app.command("remap")
+def remap(source: str, target: str) -> None:
+    """Save a key remapping in the active profile or global configuration."""
+    try:
+        manager = ConfigManager()
+        config = manager.load_active_config()
+        remaps = dict(config["remaps"])
+        remaps[source] = target
+        config["remaps"] = remaps
+        _save_active_config(manager, config)
+    except (ConfigError, ValueError) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f"Mapped {source} to {target}.")
+
+
+@app.command("unmap")
+def unmap(key: str) -> None:
+    """Remove a key remapping from the active profile or global config."""
+    try:
+        manager = ConfigManager()
+        config = manager.load_active_config()
+        code = resolve_key(key)
+        remaps = dict(config["remaps"])
+        matching = [
+            source
+            for source in remaps
+            if resolve_key(source) == code
+        ]
+        if not matching:
+            typer.echo(f"No remapping configured for {key}.")
+            return
+        for source in matching:
+            remaps.pop(source)
+        config["remaps"] = remaps
+        _save_active_config(manager, config)
+    except (ConfigError, ValueError) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f"Removed remapping for {key}.")
+
+
+@app.command("profile")
+def profile(
+    name: str | None = typer.Argument(None),
+    list_profiles: bool = typer.Option(False, "--list", help="List saved profiles."),
+    create: bool = typer.Option(False, "--create", help="Create a profile."),
+    delete: bool = typer.Option(False, "--delete", help="Delete a profile."),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Confirm deletion of an active profile or a full reset.",
+    ),
+    description: str = typer.Option("", "--description"),
+) -> None:
+    """List, create, activate, or delete profiles."""
+    actions = sum((list_profiles, create, delete))
+    if actions > 1:
+        raise typer.BadParameter("Choose only one of --list, --create, or --delete.")
+
+    manager = ConfigManager()
+    try:
+        if list_profiles:
+            profiles = manager.list_profiles()
+            typer.echo("\n".join(profiles) if profiles else "No profiles found.")
+            return
+        if name is None:
+            raise ConfigError("A profile name is required.")
+        if create:
+            manager.create_profile(name, description=description)
+            typer.echo(f"Created profile '{name}'.")
+        elif delete:
+            manager.delete_profile(name, force=force)
+            typer.echo(f"Deleted profile '{name}'.")
+        else:
+            manager.activate_profile(name)
+            typer.echo(f"Activated profile '{name}'.")
+    except ConfigError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@app.command("select-device")
+def select_device(selector: str) -> None:
+    """Save the preferred keyboard device by path, number, or name."""
+    try:
+        selected = device_manager.find_device(selector)
+        ConfigManager().select_device(selected.path)
+    except device_manager.DeviceError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f"Selected {selected.name} ({selected.path}).")
+
+
+@app.command("run")
+def run_service(
+    device: str | None = typer.Option(
+        None,
+        "--device",
+        help="Device path, list number, or name fragment.",
+    ),
+    profile_name: str | None = typer.Option(None, "--profile"),
+    timeout: float | None = typer.Option(
+        None,
+        "--timeout",
+        min=0.1,
+        help="Stop the service after this many seconds.",
+    ),
+    debug: bool = typer.Option(False, "--debug"),
+) -> None:
+    """Run remapping with exclusive input grab and virtual output."""
+    manager = ConfigManager()
+    try:
+        state = manager.load_state()
+        config = manager.load_profile(profile_name) if profile_name else manager.load_active_config()
+        selector = device or state["selected_device"] or config.get("device") or "1"
+        selected = device_manager.find_device(selector)
+        typer.echo(
+            "Starting remapping service. It will grab the selected input device; "
+            "use an emergency exit and a finite timeout."
+        )
+        KeyshiftService(manager).run(
+            selected,
+            timeout=timeout,
+            profile=profile_name,
+            debug=debug,
+        )
+    except (
+        ConfigError,
+        device_manager.DeviceError,
+        ServiceError,
+        OSError,
+        ValueError,
+    ) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@app.command("status")
+def status() -> None:
+    """Show configured profile, device, and feature counts."""
+    manager = ConfigManager()
+    state = manager.load_state()
+    config = manager.load_active_config()
+    typer.echo(f"Active profile: {state['active_profile'] or 'default'}")
+    typer.echo(
+        f"Selected device: {state['selected_device'] or config.get('device') or 'automatic'}"
+    )
+    typer.echo(f"Remaps: {len(config['remaps'])}")
+    typer.echo(f"Shortcuts: {len(config['shortcuts'])}")
+    typer.echo(f"Macros: {len(config['macros'])}")
+
+
+@app.command("reset")
+def reset(force: bool = typer.Option(False, "--force")) -> None:
+    """Restore default global settings and clear active/device selection."""
+    if not force:
+        typer.confirm("Reset global settings and selected device?", abort=True)
+    ConfigManager().reset_all()
+    typer.echo("Configuration reset to defaults. Saved profiles were kept.")
+
+
+def _save_active_config(manager: ConfigManager, config: dict) -> None:
+    active_profile = manager.load_state()["active_profile"]
+    if active_profile:
+        manager.save_profile(active_profile, config)
+    else:
+        manager.save_global(config)

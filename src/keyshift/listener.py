@@ -68,11 +68,13 @@ class KeyboardListener:
         callback: Callable[[KeyEvent], None] | None = None,
         *,
         timeout: float | None = None,
+        on_idle: Callable[[], None] | None = None,
+        close_on_finish: bool = True,
     ) -> Iterator[KeyEvent]:
         """Return an event iterator; optionally invoke ``callback`` per event."""
         if timeout is not None and timeout <= 0:
             raise ValueError("timeout must be greater than zero")
-        return self._iter_events(callback, timeout)
+        return self._iter_events(callback, timeout, on_idle, close_on_finish)
 
     def stop(self) -> None:
         """Request the event loop to stop and release/close the device."""
@@ -112,6 +114,8 @@ class KeyboardListener:
         self,
         callback: Callable[[KeyEvent], None] | None,
         timeout: float | None,
+        on_idle: Callable[[], None] | None,
+        close_on_finish: bool,
     ) -> Iterator[KeyEvent]:
         self._open()
         if self._running:
@@ -122,7 +126,7 @@ class KeyboardListener:
         try:
             self._install_sigterm_handler()
             self._grab_device()
-            for raw_event in self._read_events(timeout):
+            for raw_event in self._read_events(timeout, on_idle):
                 if self._stop_requested.is_set():
                     break
                 if raw_event.type != self._evdev.ecodes.EV_KEY:
@@ -145,9 +149,14 @@ class KeyboardListener:
             try:
                 self._restore_sigterm_handler()
             finally:
-                self._cleanup()
+                if close_on_finish:
+                    self._cleanup()
 
-    def _read_events(self, timeout: float | None) -> Iterator[object]:
+    def _read_events(
+        self,
+        timeout: float | None,
+        on_idle: Callable[[], None] | None,
+    ) -> Iterator[object]:
         device = self._device
         if device is None:
             return
@@ -173,6 +182,8 @@ class KeyboardListener:
                 raise
             if readable:
                 yield from device.read()
+            elif on_idle is not None:
+                on_idle()
 
     def _normalize_event(self, raw_event: object) -> KeyEvent:
         code = raw_event.code
