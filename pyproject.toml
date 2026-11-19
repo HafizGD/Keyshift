@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keymapper"
+version = "0.1.0"
+description = "Linux keyboard remapping library and command-line interface"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "evdev",
+    "typer",
+    "PyYAML",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+keymapper = "keymapper.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
