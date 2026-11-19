@@ -1,5 +1,8 @@
 """Typer command-line interface for keymapper."""
 
+import json
+from dataclasses import asdict
+
 import typer
 
 from keymapper import __version__
@@ -32,17 +35,44 @@ def main(
 
 
 @app.command("list-devices")
-def list_devices() -> None:
+def list_devices(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print device information as JSON.",
+    ),
+) -> None:
     """List available keyboard devices."""
+    failed_devices: list[str] = []
     try:
-        devices = device_manager.list_devices()
-    except NotImplementedError as error:
-        typer.echo(str(error))
-        return
+        devices = device_manager.list_keyboards(failed_devices=failed_devices)
+    except device_manager.DevicePermissionError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
     if not devices:
         typer.echo("No keyboard devices found.")
+        if failed_devices:
+            typer.echo(
+                f"Skipped {len(failed_devices)} unreadable device(s): "
+                f"{', '.join(failed_devices)}"
+            )
         return
 
-    for device in devices:
-        typer.echo(device)
+    if json_output:
+        typer.echo(json.dumps([asdict(device) for device in devices], indent=2))
+    else:
+        typer.echo("No  Path                 Name                         Vendor:Product")
+        for number, device in enumerate(devices, start=1):
+            vendor_product = f"{device.vendor:04x}:{device.product:04x}"
+            typer.echo(
+                f"{number:<3} {device.path:<20} {device.name:<28} "
+                f"{vendor_product}"
+            )
+
+    if failed_devices:
+        typer.echo(
+            f"Warning: skipped {len(failed_devices)} unreadable device(s): "
+            f"{', '.join(failed_devices)}",
+            err=True,
+        )

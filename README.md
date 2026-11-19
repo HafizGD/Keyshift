@@ -1,8 +1,8 @@
 # keymapper
 
 `keymapper` is a Python library and CLI scaffold for keyboard input remapping on
-Linux. The initial release establishes the package structure; keyboard device
-discovery and remapping are not implemented yet.
+Linux. The initial release supports physical keyboard discovery; event
+listening and remapping are not implemented yet.
 
 ## Requirements
 
@@ -13,6 +13,11 @@ Device permissions, desktop environments, and keyboard capabilities vary.
 Compatibility with every keyboard or desktop environment is not guaranteed.
 Future input handling must provide an emergency reset and avoid leaving
 physical input devices grabbed.
+
+Reading `/dev/input/event*` devices can expose all keystrokes, including
+passwords. Only grant the `input` group to trusted users, and do not run
+untrusted code as a user in that group. Group membership takes effect after
+logging out and back in.
 
 ## Development setup
 
@@ -32,8 +37,10 @@ keymapper --help
 keymapper list-devices
 ```
 
-`list-devices` is currently a placeholder and reports that device discovery is
-not implemented.
+`list-devices` reports readable keyboard devices and accepts `--json` for JSON
+output. It filters event nodes by key capabilities; some keyboards (including
+Bluetooth, KVM, remote desktop, and multi-node devices) may expose different
+capabilities or may not be discoverable as expected.
 
 ## Package layout
 
