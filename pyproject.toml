@@ -9,6 +9,20 @@ description = "Linux keyboard remapping library and command-line interface"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "HafizGD" }]
+keywords = ["linux", "keyboard", "evdev", "key remapping"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 dependencies = [
     "evdev",
     "typer",
@@ -16,10 +30,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "build", "twine"]
 
 [project.scripts]
 keyshift = "keyshift.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/HafizGD/Keyshift"
+Repository = "https://github.com/HafizGD/Keyshift"
+Issues = "https://github.com/HafizGD/Keyshift/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

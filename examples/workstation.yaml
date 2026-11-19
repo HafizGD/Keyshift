@@ -1,0 +1,12 @@
+version: 1
+device: null
+remaps:
+  CapsLock: LeftCtrl
+shortcuts: {}
+macros: {}
+temporary_mappings:
+  - mode: layer
+    source: H
+    target: Left
+    trigger: CapsLock
+emergency_exit: LeftCtrl+LeftAlt+LeftShift+Esc

@@ -49,6 +49,10 @@ pip install -e ".[dev]"
 pytest
 ```
 
+Release artifacts can be checked locally with `python -m build` and
+`python -m twine check dist/*`. GitHub Actions runs the test suite and these
+package checks on Python 3.10 through 3.13.
+
 ## CLI
 
 ```shell
@@ -135,6 +139,8 @@ YAML configuration is stored under `~/.config/keyshift/` (or
 `$XDG_CONFIG_HOME/keyshift/`): `config.yaml`, `state.yaml`, and
 `profiles/<name>.yaml`. Writes are atomic. Invalid files are preserved as
 `.bak` files, reset to defaults, and reported with a recovery warning.
+See [`examples/workstation.yaml`](./examples/workstation.yaml) for a validated
+configuration example.
 
 ## Package layout
 
