@@ -1,8 +1,9 @@
 # keyshift
 
 `keyshift` is a Python library and CLI scaffold for keyboard input remapping on
-Linux. The initial release supports physical keyboard discovery; event
-listening and remapping are not implemented yet.
+Linux. It currently supports physical keyboard discovery, event monitoring,
+and standalone key mapping and virtual keyboard components. The full remapping
+service is not connected yet.
 
 ## Requirements
 
