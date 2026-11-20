@@ -16,23 +16,29 @@ Working branch: `fix/audit-runtime-errors`. PR target: `main`.
 
 - [x] Commit the implementation and requested reports to `fix/audit-runtime-errors`.
 - [x] Push that branch to GitHub.
-- [ ] Open a pull request targeting `main`.
-- [ ] Verify the latest PR revision passes all required/available CI checks.
+- [x] Open a pull request targeting `main`: [PR #1](https://github.com/HafizGD/Keyshift/pull/1).
+- [x] Verify the available CI matrix at the resumed PR head `e1ed7c9` (see evidence below).
 
-Confirmed commits: `6ec8767` (fixes/tests) and `e5e6b96` (audit reports).
-Push succeeded and the remote branch was verified at
-`e5e6b967e15fb4ac59265054d25ee7f86ad6c77e`.
+Confirmed published commits: `6ec8767` (fixes/tests), `e5e6b96` (audit reports),
+and `e1ed7c9` (PR description and previous publication status). On resumption,
+local HEAD, the remote branch, and PR #1 all matched
+`e1ed7c93bf47bb56399f14b0438567cd460a024e`.
 
-PR creation through the GitHub connector returned HTTP 403,
-`Resource not accessible by integration`. An attempted fallback using the Git
-credential helper for API authentication was rejected by automatic approval
-review before execution because that credential use was not specifically
-authorized. Browser fallback also failed to initialize because of a Windows
-sandbox setup error. No PR or CI success is claimed at this point.
+PR #1 is open, targets `main`, and has not been merged. It was created on
+2026-11-20 at 02:01:05 Asia/Bangkok, before this session resumed. The earlier
+connector/credential/browser failures are historical and no longer block
+publication; do not create a duplicate PR or retry credential workarounds.
 
-A concrete PR title/body is prepared in [PR_DESCRIPTION.md](PR_DESCRIPTION.md).
-Publication can continue after explicit approval for the proposed Git-helper
-API authentication or after the connector receives permission to create PRs.
+[CI run 44593892075](https://github.com/HafizGD/Keyshift/actions/runs/44593892075)
+completed successfully for `e1ed7c9`. All four jobs (Python 3.10, 3.11, 3.12,
+and 3.13) passed their test and distribution build/check steps. The legacy
+commit-status list was empty; CI success was verified from the workflow run
+and its jobs, not inferred from that empty list.
+
+Fresh local verification: Python 3.14.4, **111 tests passed in 0.57s**, pip
+check passed, and patch whitespace checks passed. This documentation records
+the verified checkpoint; every subsequent push requires checking CI for the
+new PR head before reporting that revision as passing.
 
 ## Outstanding limitation
 

@@ -14,7 +14,7 @@ Branch: `fix/audit-runtime-errors`; baseline: `8f85b03`.
 
 | Check | Command or scenario | Observed result |
 | --- | --- | --- |
-| Complete suite | `.venv/bin/python -m pytest -q` | **111 passed in 0.25s**, exit 0, during this verification. |
+| Complete suite | `.venv/bin/python -m pytest -q` | **111 passed in 0.57s**, exit 0, during resumed-session verification. |
 | Dependencies | `.venv/bin/python -m pip check` | `No broken requirements found.`, exit 0. |
 | Distribution build | `.venv/bin/python -m build --outdir <temporary-dist>` | Source archive and wheel built, exit 0. |
 | Distribution validation | `.venv/bin/python -m twine check <temporary-dist>/*` | Both artifacts PASSED, exit 0. |
@@ -28,10 +28,10 @@ Branch: `fix/audit-runtime-errors`; baseline: `8f85b03`.
 
 Before fixes, the original suite had 85 passing tests. Adding 26 regression and
 compatibility cases produced **25 failed, 86 passed** before implementation.
-After implementation, all **111** passed (previous verification: 0.34s; current
-verification: 0.25s). The one added case that already passed checks reset
-compatibility; the new failure run demonstrated the five defects and related
-missing-device error.
+After implementation, all **111** passed (earlier verifications: 0.34s and
+0.25s; resumed-session verification: 0.57s). The one added case that already
+passed checks reset compatibility; the new failure run demonstrated the five
+defects and related missing-device error.
 
 Coverage includes repeated macros without stopping input processing, shared key
 target ownership, remap reload/reset, global/profile source aliases, invalid
@@ -63,14 +63,23 @@ Local Python 3.14 testing is additional evidence, not a substitute for this matr
 The feature-branch push alone does not trigger the current push filter, which is
 restricted to `main`; opening the PR triggers the matrix.
 
-Publication verification: commits `6ec8767` and `e5e6b96` were pushed successfully.
-For pushed commit `e5e6b967e15fb4ac59265054d25ee7f86ad6c77e`, the GitHub connector
-returned `workflow_runs: []` and `statuses: []`. This means no PR CI run or
-legacy status was observed; it is not a passing CI result.
+On resumption, [PR #1](https://github.com/HafizGD/Keyshift/pull/1) was already
+open with head `e1ed7c93bf47bb56399f14b0438567cd460a024e`, matching local HEAD
+and the remote branch. The earlier PR-creation failures are historical.
 
-PR creation was denied by the connector with HTTP 403,
-`Resource not accessible by integration`. Automatic approval review also
-rejected the proposed Git-helper credential use for direct API authentication
-without specific user approval, before that fallback ran. Browser automation
-failed to initialize. PR creation and the CI matrix remain pending until an
-authorized working route is available. See [PROGRESS.md](PROGRESS.md).
+[CI run 44593892075](https://github.com/HafizGD/Keyshift/actions/runs/44593892075)
+was fetched for that commit and reported `completed` / `success`. Job-level
+verification confirmed:
+
+| Python | Job ID | Tests | Build and twine |
+| --- | --- | --- | --- |
+| 3.10 | 135806895354 | Passed | Passed |
+| 3.11 | 135806896234 | Passed | Passed |
+| 3.12 | 135806895998 | Passed | Passed |
+| 3.13 | 135806896026 | Passed | Passed |
+
+The legacy commit-status list remained empty; success is supported by the
+completed workflow and all four jobs. Fresh local verification on Python
+3.14.4 also passed all 111 tests in 0.57s, pip check, and patch whitespace
+checks. CI evidence above applies to the recorded revision; check the latest
+PR head again after any subsequent push. See [PROGRESS.md](PROGRESS.md).

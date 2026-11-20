@@ -50,20 +50,20 @@ No kernel modules, group membership, or device permissions were changed.
 
 ## Pull request and CI
 
-Commits `6ec8767` and `e5e6b96` were created and pushed successfully. The remote
-branch matches local HEAD at `e5e6b967e15fb4ac59265054d25ee7f86ad6c77e` as of
-that push verification.
+[PR #1](https://github.com/HafizGD/Keyshift/pull/1) is open from
+`fix/audit-runtime-errors` to `main`; it has not been merged. On resumption,
+local HEAD, the remote branch, and the PR head all matched
+`e1ed7c93bf47bb56399f14b0438567cd460a024e` (three published commits).
 
-PR creation is currently blocked: the GitHub connector returned HTTP 403
-`Resource not accessible by integration`; automatic approval review rejected
-reuse of the Git helper credential for direct API requests without specific
-approval, and browser automation failed to initialize. The proposed
-[PR description](docs/PR_DESCRIPTION.md) is ready. See
-[progress](docs/PROGRESS.md) for the latest publication state.
+[CI run 44593892075](https://github.com/HafizGD/Keyshift/actions/runs/44593892075)
+completed successfully for that revision. All four Python 3.10-3.13 jobs passed
+tests, distribution builds, and twine validation. Local revalidation on Python
+3.14.4 also passed: 111 tests in 0.57s, pip check, and patch whitespace checks.
 
-The CI matrix is Python 3.10-3.13 and runs tests, build, and twine checks.
-No PR-associated run has yet been verified. Do not claim CI is green until
-checks on the latest PR revision have actually completed.
+The old PR-creation blocker is historical: the PR already existed when this
+session resumed. Do not recreate it or retry credential workarounds. See
+[progress](docs/PROGRESS.md) for publication evidence. These results identify
+the verified revision; verify the new PR head after any further push.
 
 ## Approval boundary
 
