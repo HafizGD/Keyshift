@@ -254,16 +254,21 @@ class MappingEngine:
         source_code = event.code
         mappings = self._mappings | self._temporary_mappings
         if event.value == 1:
-            target_code = self._held_targets.get(
-                source_code,
-                mappings.get(source_code, source_code),
-            )
+            if source_code in self._held_targets:
+                return []
+            target_code = mappings.get(source_code, source_code)
+            already_held = target_code in self._held_targets.values()
             self._held_targets[source_code] = target_code
+            if already_held:
+                return []
         elif event.value == 0:
             target_code = self._held_targets.pop(
                 source_code,
                 mappings.get(source_code, source_code),
             )
+            # A target stays down until every physical source releases it.
+            if target_code in self._held_targets.values():
+                return []
         else:
             target_code = self._held_targets.get(
                 source_code,

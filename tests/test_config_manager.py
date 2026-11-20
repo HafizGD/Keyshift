@@ -205,3 +205,25 @@ def test_corrupt_profile_is_backed_up_and_reset(tmp_path) -> None:
 
     assert profile["metadata"]["name"] == "gaming"
     assert profile_path.with_suffix(".yaml.bak").exists()
+
+
+@pytest.mark.parametrize("config", [
+    {1: "invalid"},
+    {None: "invalid", "unknown": True},
+    {"metadata": {False: "invalid"}},
+    {"macros": {"demo": [{"type": "tap", "key": "A", 1: "invalid"}]}},
+    {"macros": {"demo": [{"type": "delay_ms", "ms": 0, None: "invalid"}]}},
+    {"macros": {"demo": [{"type": "text", "text": "hi", False: "invalid"}]}},
+])
+def test_non_string_yaml_field_names_raise_config_error(config) -> None:
+    with pytest.raises(ConfigError, match="keys must be strings"):
+        config_manager.validate_config(config)
+
+
+def test_numeric_state_keys_are_backed_up_and_recovered(tmp_path) -> None:
+    manager = ConfigManager(tmp_path)
+    manager.state_path.write_text("1: invalid\n", encoding="utf-8")
+    with pytest.warns(ConfigRecoveryWarning):
+        assert manager.load_state() == {"active_profile": None, "selected_device": None}
+    backup = manager.state_path.with_suffix(".yaml.bak")
+    assert backup.read_text(encoding="utf-8") == "1: invalid\n"

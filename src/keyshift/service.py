@@ -22,7 +22,12 @@ from keyshift.listener import (
     KeyEvent,
     KeyboardListener,
 )
-from keyshift.macro_engine import MacroEngine, MacroExecutionError, MacroHandle
+from keyshift.macro_engine import (
+    MacroAlreadyRunningError,
+    MacroEngine,
+    MacroExecutionError,
+    MacroHandle,
+)
 from keyshift.mapping_engine import (
     MappingEngine,
     TemporaryMappingManager,
@@ -279,6 +284,8 @@ class KeyshiftService:
                     self._output = output
                     output.__enter__()
                     self._configure(self._load_config())
+                    # This run has a new output device, so no keys are held yet.
+                    self.mapping_engine.reset_held_keys()
                     self._macro_engine = MacroEngine(output)
                     self._install_sighup_handler()
 
@@ -489,7 +496,12 @@ class KeyshiftService:
             steps = self._macros.get(name)
             if steps is None:
                 raise ConfigError(f"Shortcut references unknown macro '{name}'.")
-            self._macro_handles.append(self._macro_engine.play(name, steps))
+            try:
+                handle = self._macro_engine.play(name, steps)
+            except MacroAlreadyRunningError:
+                logger.debug("Ignored shortcut because its macro is already running.")
+                return
+            self._macro_handles.append(handle)
             return
         if action.startswith("profile:"):
             name = action.removeprefix("profile:")

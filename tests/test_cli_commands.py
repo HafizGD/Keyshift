@@ -1,10 +1,12 @@
 """Tests for persisted configuration commands and service invocation."""
 
+import pytest
 from typer.testing import CliRunner
 
 from keyshift import cli, device_manager
-from keyshift.config_manager import ConfigManager
+from keyshift.config_manager import ConfigManager, ConfigRecoveryWarning
 from keyshift.diagnostics import Diagnostic
+from keyshift.mapping_engine import MappingEngine
 
 
 def use_xdg(monkeypatch, tmp_path) -> None:
@@ -199,3 +201,48 @@ def test_doctor_command_reports_checks_and_fails_on_invalid_configuration(
     assert result.exit_code == 1
     assert "[WARN] Input devices: No readable keyboards." in result.output
     assert "[FAIL] Configuration: Invalid YAML." in result.output
+
+
+@pytest.mark.parametrize("active_profile", [False, True])
+def test_remap_replaces_case_and_key_aliases(monkeypatch, tmp_path, active_profile) -> None:
+    use_xdg(monkeypatch, tmp_path)
+    manager = ConfigManager()
+    if active_profile:
+        manager.create_profile("work")
+        manager.activate_profile("work")
+    runner = CliRunner()
+    for source, target in [("a", "B"), ("KEY_A", "C"), ("A", "D"), ("a", "E")]:
+        result = runner.invoke(cli.app, ["remap", source, target])
+        assert result.exit_code == 0, result.output
+    config = manager.load_active_config()
+    engine = MappingEngine(config["remaps"])
+    assert engine.mappings == {30: 18}  # Linux KEY_A -> KEY_E, the latest request.
+    assert len(config["remaps"]) == 1
+    if active_profile:
+        assert manager.load_global()["remaps"] == {}
+
+
+def test_doctor_rejects_numeric_yaml_keys_without_changing_file(monkeypatch, tmp_path) -> None:
+    use_xdg(monkeypatch, tmp_path)
+    manager = ConfigManager()
+    manager.directory.mkdir(parents=True)
+    manager.config_path.write_text("1: invalid\n", encoding="utf-8")
+    result = CliRunner().invoke(cli.app, ["doctor"])
+    assert result.exit_code == 1
+    assert "[FAIL] Configuration" in result.output
+    assert "keys must be strings" in result.output
+    assert manager.config_path.read_text(encoding="utf-8") == "1: invalid\n"
+    assert not manager.config_path.with_suffix(".yaml.bak").exists()
+
+
+def test_status_recovers_numeric_yaml_keys_with_backup(monkeypatch, tmp_path) -> None:
+    use_xdg(monkeypatch, tmp_path)
+    manager = ConfigManager()
+    manager.directory.mkdir(parents=True)
+    manager.config_path.write_text("1: invalid\n", encoding="utf-8")
+    with pytest.warns(ConfigRecoveryWarning):
+        result = CliRunner().invoke(cli.app, ["status"])
+    assert result.exit_code == 0, result.output
+    assert "Remaps: 0" in result.output
+    backup = manager.config_path.with_suffix(".yaml.bak")
+    assert backup.read_text(encoding="utf-8") == "1: invalid\n"

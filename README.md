@@ -9,6 +9,12 @@ environment, and keyboard layout. A physical keyboard may expose multiple
 event nodes, while Bluetooth keyboards, KVM switches, remote desktops, or
 unusual devices may not be discoverable or behave as expected.
 
+The CLI and automated tests can run in an environment without a physical
+keyboard, but remapping requires readable `/dev/input/event*` keyboard nodes
+and writable `/dev/uinput`. If a WSL or container environment does not expose
+these devices, passing tests does not mean physical remapping is available.
+Run `keyshift doctor` and `keyshift list-devices` to check that environment.
+
 ## Safety and permissions
 
 Reading `/dev/input/event*` can expose every keystroke, including passwords.
@@ -76,7 +82,9 @@ keyshift run --device 1 --timeout 60 --reconnect
 keyshift reset --force
 ```
 
-`list-devices` filters event nodes by keyboard key capabilities. `monitor`
+`list-devices` filters event nodes by keyboard key capabilities. Its `--json`
+output is always an array on success, including `[]` when no keyboards are
+found; warnings go to stderr. `monitor`
 prints press, release, and repeat events without grabbing the device. `run`
 applies configured mappings, shortcuts, and macros; it grabs the selected
 input device and uses `/dev/uinput` for output. Only one service instance can
@@ -87,6 +95,10 @@ Remaps are stored in the active profile or global configuration. Temporary
 remaps support a fixed duration (`--for`, using `s`, `m`, or `h`, capped at 24
 hours), a toggle key (`--toggle`), or a held layer key (`--while-held`). A
 temporary remap overrides a permanent remap for the same source key.
+Updating a permanent remap using another spelling of its source (such as
+`a`, `A`, or `KEY_A`) replaces the existing mapping. If several physical
+keys share an output key, that output remains pressed until all of them
+are released.
 
 The emergency chord is configurable in `config.yaml`, for example:
 
@@ -101,7 +113,9 @@ temporary_mappings:
 
 Shortcut triggers and outputs use Linux key codes rather than translated
 characters, so behavior depends on the active layout. Macro text entry uses a
-basic US key layout, not a character-layout translation service.
+basic US key layout, not a character-layout translation service. Triggering
+an already-running macro again is ignored until that execution finishes;
+ordinary keyboard input continues to be processed.
 
 `doctor` performs read-only checks for dependencies, readable keyboard nodes,
 configuration validity, `/dev/uinput`, the uinput module, and a running service.

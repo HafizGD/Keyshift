@@ -157,3 +157,53 @@ def test_temporary_layer_is_active_only_while_trigger_is_held() -> None:
     }
     assert temporary.process(event(resolve_key("CapsLock"), 0, "KEY_CAPSLOCK"))
     assert temporary.active_mappings() == {}
+
+
+@pytest.mark.parametrize(
+    "mappings, second",
+    [({"A": "B"}, "B"), ({"A": "B", "C": "B"}, "C")],
+)
+@pytest.mark.parametrize("release_first", [True, False])
+def test_shared_target_stays_pressed_until_last_source_released(mappings, second, release_first) -> None:
+    engine = MappingEngine(mappings)
+    first_code, second_code = resolve_key("A"), resolve_key(second)
+    presses = engine.process(event(first_code, 1)) + engine.process(event(second_code, 1))
+    assert [(item.code, item.value) for item in presses] == [(48, 1)]
+    first_up, last_up = (first_code, second_code) if release_first else (second_code, first_code)
+    assert engine.process(event(first_up, 0)) == []
+    repeat = engine.process(event(last_up, 2))
+    release = engine.process(event(last_up, 0))
+    assert [(item.code, item.value) for item in repeat + release] == [(48, 2), (48, 0)]
+
+
+def test_shared_target_release_survives_configuration_change() -> None:
+    engine = MappingEngine({"A": "B", "C": "B"})
+    engine.process(event(30, 1))
+    engine.process(event(46, 1))
+    engine.set_mappings({"A": "D", "C": "E"})
+    assert engine.process(event(30, 0)) == []
+    assert [(item.code, item.value) for item in engine.process(event(46, 0))] == [(48, 0)]
+    assert engine.process(event(30, 1))[0].code == 32
+
+
+def test_unmatched_release_does_not_release_another_sources_target() -> None:
+    engine = MappingEngine({"A": "B"})
+    engine.process(event(30, 1))
+    assert engine.process(event(48, 0)) == []
+    assert [(item.code, item.value) for item in engine.process(event(30, 0))] == [(48, 0)]
+
+
+def test_repeated_press_does_not_duplicate_or_leak_target_ownership() -> None:
+    engine = MappingEngine({"A": "B"})
+    engine.process(event(30, 1))
+    assert engine.process(event(30, 1)) == []
+    assert [(item.code, item.value) for item in engine.process(event(30, 0))] == [(48, 0)]
+
+
+def test_reset_forgets_all_owners_of_shared_target() -> None:
+    engine = MappingEngine({"A": "B"})
+    engine.process(event(30, 1))
+    engine.process(event(48, 1))
+    engine.reset_held_keys()
+    output = engine.process(event(30, 1)) + engine.process(event(30, 0))
+    assert [(item.code, item.value) for item in output] == [(48, 1), (48, 0)]

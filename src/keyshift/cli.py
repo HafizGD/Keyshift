@@ -59,17 +59,10 @@ def list_devices(
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1) from error
 
-    if not devices:
-        typer.echo("No keyboard devices found.")
-        if failed_devices:
-            typer.echo(
-                f"Skipped {len(failed_devices)} unreadable device(s): "
-                f"{', '.join(failed_devices)}"
-            )
-        return
-
     if json_output:
         typer.echo(json.dumps([asdict(device) for device in devices], indent=2))
+    elif not devices:
+        typer.echo("No keyboard devices found.")
     else:
         typer.echo("No  Path                 Name                         Vendor:Product")
         for number, device in enumerate(devices, start=1):
@@ -185,7 +178,12 @@ def remap(
                 },
             )
         else:
-            remaps = dict(config["remaps"])
+            source_code = resolve_key(source)
+            remaps = {
+                key: value
+                for key, value in config["remaps"].items()
+                if resolve_key(key) != source_code
+            }
             remaps[source] = target
             config["remaps"] = remaps
         _save_active_config(manager, config)

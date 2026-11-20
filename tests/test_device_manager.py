@@ -201,3 +201,26 @@ def test_cli_permission_failure_has_guidance_and_nonzero_exit(monkeypatch) -> No
     assert result.exit_code == 1
     assert "input" in result.output
     assert "log out and back in" in result.output
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_cli_empty_json_is_parseable_even_with_unreadable_devices(monkeypatch, failed) -> None:
+    def empty_devices(*, failed_devices):
+        if failed:
+            failed_devices.append("/dev/input/event99")
+        return []
+    monkeypatch.setattr(device_manager, "list_keyboards", empty_devices)
+    result = CliRunner().invoke(cli.app, ["list-devices", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == []
+    if failed:
+        assert "/dev/input/event99" in result.stderr
+
+
+@pytest.mark.parametrize("selector", ["1", "/dev/input/event0", "keyboard"])
+def test_empty_device_selection_explains_missing_input(selector) -> None:
+    with pytest.raises(device_manager.DeviceNotFoundError) as error:
+        device_manager.find_device(selector, enumerator=lambda: [])
+    assert "/dev/input/event*" in str(error.value)
+    assert "keyshift doctor" in str(error.value)
+    assert "1 to 0" not in str(error.value)
