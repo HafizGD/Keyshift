@@ -1,33 +1,26 @@
-# Fix five audited runtime and CLI defects with regression coverage
+# Fix audited runtime and CLI defects with regression coverage
 
-Target: `HafizGD/Keyshift`, base `main`, head `fix/audit-runtime-errors`.
+Repeated macro shortcuts could stop remapping, shared targets could release
+too early, and source aliases could ignore the latest mapping. Invalid YAML
+field names crashed validation/recovery, and successful empty JSON device
+listings emitted prose. Final review also reproduced a service-reuse
+regression: a stale held key suppressed the first press on the next run.
 
-Repeated macro shortcuts could stop the service, shared remap targets could be
-released too early, and source aliases could ignore the latest remap. Invalid
-YAML field names crashed diagnosis/recovery, while empty JSON device listings
-emitted prose.
+This PR fixes the five audited defects, clears held-key ownership at the
+start of a new service run, and gives actionable missing-device guidance.
+In-session configuration reloads continue to preserve held-key pairing.
+The original 85 tests plus 28 regression/compatibility cases now total 113.
 
-This PR fixes all five cases and adds 26 regression/compatibility cases (111 tests):
+Validation: 113 local tests passed on Python 3.14.4; pip check, isolated
+source/wheel builds, twine validation, and whitespace checks passed. The two
+service-reuse cases failed before their fix. Independent final review
+verified that fix and found no remaining Important or Critical issues.
+See docs/TEST_REPORT.md and docs/PROGRESS.md for revision-specific CI evidence.
 
-- Ignore duplicate requests for an active macro while continuing keyboard input.
-- Keep shared targets down until the final source releases them, including across configuration changes.
-- Replace permanent remap aliases by resolved source in global and active-profile configuration.
-- Reject non-string YAML field names through ConfigError, retaining read-only doctor checks and backup/recovery.
-- Emit `[]` for successful empty JSON device output and send discovery warnings to stderr.
+Physical keyboard grabbing, actual uinput output, desktop remapping, and
+physical reconnect remain unverified: WSL has no /dev/input and no usable
+uinput access. No device permissions or kernel settings were changed.
 
-Missing-device startup now explains required Linux keyboard nodes instead of
-suggesting the range 1 to 0. The initial audit, fix/test reports, changelog,
-progress record and handover are included.
-
-Validation on Python 3.14.4: 111 tests passed; pip check, source/wheel build,
-twine check, and git diff --check passed. The regression run before implementation
-had 25 failures and 86 passes. Independent implementation review found no
-critical or important findings.
-
-Physical keyboard validation remains outstanding: this WSL environment has no
-`/dev/input` and no read/write access to `/dev/uinput` for the current user.
-Bounded startup exits with actionable guidance. Simulated hardware tests do not
-establish actual desktop remapping. No kernel or device permissions were changed.
-
-Verify the existing Python 3.10-3.13 GitHub Actions matrix after PR creation.
-Do not merge or enable auto-merge without the user's explicit approval.
+The user authorized squash merge after the latest PR CI succeeds. Respect
+all GitHub branch rules and required reviews; verify main and its CI after
+merge. No release version or package publication is included.

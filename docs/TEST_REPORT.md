@@ -10,7 +10,51 @@ Branch: `fix/audit-runtime-errors`; baseline: `8f85b03`.
 - Builds used isolated build environments and temporary output directories.
 - CLI mutation checks used temporary XDG configuration/state directories.
 
-## Results
+## Final review verification after the additional regression fix
+
+Implementation commit: `2820eba6f73703b35f3a86f4c58a13b043a4eb0e`.
+Two service-reuse cases failed before the fix (normal exit and disconnection),
+both because the second run emitted only B up instead of B down then B up.
+Resetting held-key ownership at the start of run fixes the stale state while
+preserving it during in-session configuration reloads.
+
+After the fix: **113 passed, zero failed, in 0.25s**, on Python 3.14.4.
+Dependency consistency, isolated source/wheel builds, twine validation of both
+artifacts, and whitespace checks were rerun and passed. Independent review
+verified both new cases and the existing held-key reload case (3 passed),
+with no remaining Important or Critical findings. Final PR CI must verify
+the new head; the earlier CI run below applies only to its stated baseline.
+
+## Initial final-review checkpoint (before the additional fix)
+
+Verified code baseline: `68ed6b04b5f6f38c4e2cd9d7ea8fd9e74d20d035`.
+All commands below were rerun for the final review on 2026-11-20.
+
+| Check | Result |
+| --- | --- |
+| Complete pytest suite, Python 3.14.4 | **111 passed, 0 failed, in 0.25s** |
+| pip check | No broken requirements |
+| Isolated source and wheel build | Both built successfully |
+| twine check | Both distributions PASSED |
+| git diff --check origin/main...HEAD | Passed |
+| Branch comparison | 0 commits behind main, 4 ahead before final documentation |
+| Physical keyboard access | `/dev/input` absent; `/dev/uinput` exists but is not readable/writable by this user |
+
+[CI run 44662243060](https://github.com/HafizGD/Keyshift/actions/runs/44662243060)
+completed successfully for that exact baseline. All four jobs and their tests,
+distribution builds, and twine checks passed:
+
+| Python | Job ID | Result |
+| --- | --- | --- |
+| 3.10 | 136042993286 | Passed |
+| 3.11 | 136042993269 | Passed |
+| 3.12 | 136042992861 | Passed |
+| 3.13 | 136042993191 | Passed |
+
+CI must also pass for the new documentation commit before merge and for main
+after merge. Those later results will be recorded in the final merge record.
+
+## Historical local results (previous session)
 
 | Check | Command or scenario | Observed result |
 | --- | --- | --- |
@@ -55,7 +99,7 @@ through simulated hardware and real processing logic. Tests/build success does
 not establish real-device operation. Verification on an environment exposing a
 readable keyboard event node and writable uinput remains outstanding.
 
-## GitHub Actions
+## Historical GitHub Actions evidence (superseded)
 
 The repository CI workflow runs tests, builds distributions, and runs twine on
 Python **3.10, 3.11, 3.12, and 3.13** for pull requests targeting `main`.

@@ -105,3 +105,36 @@ The previous independent read-only review approved the fixes with no critical
 or important findings; its checklist-completion note was addressed. The current
 verification re-read the implementation diff and ran the suite, build, package
 checks and bounded CLI startup. See [TEST_REPORT.md](TEST_REPORT.md).
+
+## Final review checkpoint
+
+The five fixes remain unchanged at
+`68ed6b04b5f6f38c4e2cd9d7ea8fd9e74d20d035`. Final local verification on
+2026-11-20 passed 111 tests (zero failures), pip check, an isolated source/wheel
+build, twine validation, and full-PR whitespace checks.
+[CI run 44662243060](https://github.com/HafizGD/Keyshift/actions/runs/44662243060)
+passed on Python 3.10-3.13 at that baseline. Final independent review found
+the additional regression below, then verified its fix with no remaining
+Important or Critical issues. See [PROGRESS.md](PROGRESS.md) for merge status.
+
+Actual keyboard grabbing, desktop remapping, and physical reconnect behavior
+remain unverified because WSL does not expose usable input/output devices.
+
+## KSH-006: service reuse retained stale held-key ownership
+
+Found during final review, after the original five fixes. Reusing a
+`KeyshiftService` after it stopped while A was held caused the next A press
+to be suppressed as a duplicate: with A -> B, the second run emitted only
+B up. This was reproduced after both normal completion and disconnection.
+
+Commit `2820eba6f73703b35f3a86f4c58a13b043a4eb0e` resets mapping ownership
+at the start of `run()` when a fresh output device is created. Configuration
+reloads within a run still preserve held-key pairing. No broader mapping
+behavior or device permissions were changed.
+
+`test_service_reuse_starts_with_fresh_held_keys` adds two cases in
+[test_service.py](../tests/test_service.py). Both failed before the fix; the
+complete suite passed afterward: **113 passed, zero failed, in 0.25s**.
+Build, twine, pip, and whitespace checks also passed again. Independent
+follow-up review ran both cases plus held-key reload (3 passed) and approved
+the fix. Physical keyboard behavior remains unverified.
