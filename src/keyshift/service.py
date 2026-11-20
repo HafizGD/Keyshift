@@ -284,6 +284,8 @@ class KeyshiftService:
                     self._output = output
                     output.__enter__()
                     self._configure(self._load_config())
+                    # This run has a new output device, so no keys are held yet.
+                    self.mapping_engine.reset_held_keys()
                     self._macro_engine = MacroEngine(output)
                     self._install_sighup_handler()
 

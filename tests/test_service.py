@@ -421,3 +421,39 @@ def test_service_does_not_release_shared_target_early(monkeypatch, tmp_path) -> 
     service.run(device, timeout=1)
     emitted = [call for call in calls if call[0] == "emit"]
     assert emitted == [("emit", 48, 1), ("emit", 48, 2), ("emit", 48, 0)]
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_service_reuse_starts_with_fresh_held_keys(
+    monkeypatch, tmp_path, interrupted
+) -> None:
+    events = [event("A", 1)]
+    first_run = True
+
+    def finish_events(on_idle):
+        if first_run and interrupted:
+            raise DeviceDisconnectedError("simulated disconnect")
+
+    manager, service, device, calls = make_service(
+        monkeypatch, tmp_path, events, after_events=finish_events,
+    )
+    manager.save_global({"remaps": {"A": "B"}})
+
+    # The first run ends without receiving the physical release.
+    if interrupted:
+        with pytest.raises(DeviceDisconnectedError, match="simulated disconnect"):
+            service.run(device, timeout=1)
+    else:
+        service.run(device, timeout=1)
+    assert [call for call in calls if call[0] == "emit"] == [("emit", 48, 1)]
+
+    first_run = False
+    events[:] = [event("A", 1), event("A", 0)]
+    calls.clear()
+    service.run(device, timeout=1)
+
+    assert [call for call in calls if call[0] == "emit"] == [
+        ("emit", 48, 1), ("emit", 48, 0),
+    ]
+    assert service.status()["running"] is False
+    assert not ProcessLock.is_locked(tmp_path / "service.lock")
