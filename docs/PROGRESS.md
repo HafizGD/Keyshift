@@ -23,7 +23,7 @@ Working branch: `fix/audit-runtime-errors`. PR target: `main`.
 - [x] Complete independent final code/security/regression review; one service-reuse regression was reproduced and fixed.
 - [x] Add two failing regression cases, then verify all 113 tests pass after fix `2820eba`.
 - [x] Rebuild/revalidate the fixed package; reviewer verified the fix and held-key reload with 3 passing cases, no remaining Important/Critical findings.
-- [ ] Commit/push the final documentation and verify CI at its exact head.
+- [x] Commit/push the final documentation and verify CI at `664f506` (run 44663810657, all four matrix jobs passed).
 - [ ] Squash merge PR #1 without bypassing GitHub checks.
 - [ ] Verify main contains the full approved tree and passes its push-triggered CI.
 - [ ] Record the final merge result and preserve the feature branch until verified.
@@ -31,8 +31,19 @@ Working branch: `fix/audit-runtime-errors`. PR target: `main`.
 The verified baseline above is `68ed6b04b5f6f38c4e2cd9d7ea8fd9e74d20d035`;
 main was `8f85b03e8916552aaad32a8bf840d034298ae7ac`. The subsequent local
 fix is `2820eba6f73703b35f3a86f4c58a13b043a4eb0e` (113 tests passed in 0.25s).
-The earlier green CI does not verify this new code; final PR CI is pending.
-No merge is claimed yet.
+The subsequent PR head `664f50617b8570915bfee7f661584bd0c6fb2589` was pushed
+successfully and verified by [CI run 44663810657](https://github.com/HafizGD/Keyshift/actions/runs/44663810657).
+All Python 3.10-3.13 jobs passed tests and distribution validation. No merge is
+claimed: the connector denied the squash-merge request with HTTP 403, and the
+browser failed to initialize. Main remains at the baseline above.
+
+The user has authorized merge; narrowly scoped consent for the existing Git
+credential's use with the GitHub API is pending, because the previous session's
+automatic approval review rejected that route without specific consent.
+No credentials were extracted, no branch was deleted, and no check was bypassed.
+The remote PR description could not be updated (same connector 403); the final
+prepared description is in [PR_DESCRIPTION.md](PR_DESCRIPTION.md). Further
+pushes require CI verification at their exact head before merge.
 
 ## Historical publication tracking (superseded)
 

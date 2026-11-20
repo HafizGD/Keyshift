@@ -50,7 +50,32 @@ current user. Actual keyboard grabbing, desktop remapping, and physical
 reconnect behavior still require verification on a suitable Linux setup.
 No kernel modules, group membership, or device permissions were changed.
 
-## Final review checkpoint
+## Latest merge checkpoint
+
+PR #1 head `664f50617b8570915bfee7f661584bd0c6fb2589` was pushed and verified.
+[CI run 44663810657](https://github.com/HafizGD/Keyshift/actions/runs/44663810657)
+passed all Python 3.10-3.13 jobs, including tests and build/twine checks.
+The complete local suite passed **113 tests, zero failures**; final independent
+review has no remaining Important or Critical findings.
+
+PR #1 is still open and mergeable. A requested squash merge at the exact head
+above was rejected by the GitHub connector with HTTP 403, `Resource not
+accessible by integration`. Updating its description was denied similarly.
+Browser fallback failed to initialize twice because of the Windows sandbox
+helper. Main remains `8f85b03e8916552aaad32a8bf840d034298ae7ac`; no merge commit
+or post-merge CI exists. No branch was deleted and no protection was bypassed.
+
+The user already authorized squash merge. A separate, narrowly scoped request
+is pending to use the existing Git credential for GitHub API authentication,
+because automatic approval review rejected that use without specific consent
+in the previous session. Do not extract or repurpose that credential until
+that request is answered. The prepared PR description is in
+[PR_DESCRIPTION.md](docs/PR_DESCRIPTION.md).
+
+This is a recorded checkpoint, not a claim that a later documentation-only
+revision has already passed CI. Verify the exact latest head before merging.
+
+## Historical final-review checkpoint
 
 The final-review baseline is `68ed6b04b5f6f38c4e2cd9d7ea8fd9e74d20d035`.
 [PR #1](https://github.com/HafizGD/Keyshift/pull/1) is open and mergeable against

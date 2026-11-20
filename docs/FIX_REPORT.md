@@ -138,3 +138,8 @@ complete suite passed afterward: **113 passed, zero failed, in 0.25s**.
 Build, twine, pip, and whitespace checks also passed again. Independent
 follow-up review ran both cases plus held-key reload (3 passed) and approved
 the fix. Physical keyboard behavior remains unverified.
+
+The complete reviewed changes and final documentation were pushed as PR head
+`664f50617b8570915bfee7f661584bd0c6fb2589` and passed
+[CI run 44663810657](https://github.com/HafizGD/Keyshift/actions/runs/44663810657)
+on all four supported CI versions. Merge status is tracked in PROGRESS.md.

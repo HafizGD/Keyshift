@@ -22,8 +22,15 @@ After the fix: **113 passed, zero failed, in 0.25s**, on Python 3.14.4.
 Dependency consistency, isolated source/wheel builds, twine validation of both
 artifacts, and whitespace checks were rerun and passed. Independent review
 verified both new cases and the existing held-key reload case (3 passed),
-with no remaining Important or Critical findings. Final PR CI must verify
-the new head; the earlier CI run below applies only to its stated baseline.
+with no remaining Important or Critical findings.
+
+Final PR head `664f50617b8570915bfee7f661584bd0c6fb2589` subsequently passed
+[CI run 44663810657](https://github.com/HafizGD/Keyshift/actions/runs/44663810657).
+Jobs 136048143852 (3.10), 136048143950 (3.11), 136048144072 (3.12), and
+136048144096 (3.13) all completed successfully, including tests and
+build/twine steps. The merge request was denied by the connector (HTTP 403),
+so no post-merge main verification is claimed. Later documentation pushes
+need their own CI verification before merging.
 
 ## Initial final-review checkpoint (before the additional fix)
 

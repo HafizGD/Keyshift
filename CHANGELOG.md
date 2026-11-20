@@ -22,4 +22,6 @@
 - Reverify the final-review baseline `68ed6b0`: 111 local tests passed, source/wheel builds and package validation passed, and [CI run 44662243060](https://github.com/HafizGD/Keyshift/actions/runs/44662243060) passed on Python 3.10-3.13.
 - Preserve historical audit/test evidence separately from current final-review and merge tracking in the handover and reports.
 
+- Verify the complete final-review revision `664f506` with [CI run 44663810657](https://github.com/HafizGD/Keyshift/actions/runs/44663810657), passing on Python 3.10-3.13; merge status is recorded separately in the handover.
+
 No release version has been changed or published by this work.
