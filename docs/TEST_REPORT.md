@@ -3,6 +3,30 @@
 Verification date: 2026-11-20 (Asia/Bangkok).
 Branch: `fix/audit-runtime-errors`; baseline: `8f85b03`.
 
+## Latest verified PR revision
+
+PR head `976b78371b77c6232673bd8f1581452501a5d9d9` passed
+[CI run 44664181017](https://github.com/HafizGD/Keyshift/actions/runs/44664181017).
+The workflow and all four jobs completed with success:
+
+| Python | Job ID | Tests | Build/twine |
+| --- | --- | --- | --- |
+| 3.10 | 136049352637 | success | success |
+| 3.11 | 136049352335 | success | success |
+| 3.12 | 136049352652 | success | success |
+| 3.13 | 136049352621 | success | success |
+
+Fresh local verification on Python 3.14.4: **113 passed in 0.38s**; pip check,
+isolated distribution build, twine validation of both artifacts, and whitespace
+checks all passed. Source code was inspected and preserved, including the later
+service-reuse fix. No completed fix was reimplemented.
+
+The branch APIs reported main unprotected, no configured required status-check
+contexts, and no active branch rules; no settings were changed. All four
+available CI jobs were nevertheless verified as passing. PR #1 remains open
+and unmerged. This evidence snapshot precedes a documentation-only update;
+verify the latest PR checks after that push before declaring the final head green.
+
 ## Environment
 
 - WSL Ubuntu; existing project virtual environment, Python 3.14.4.

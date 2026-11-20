@@ -4,6 +4,30 @@ Updated: 2026-11-20 (Asia/Bangkok).
 Repository: https://github.com/HafizGD/Keyshift
 Branch: `fix/audit-runtime-errors`; target: `main`; original base: `8f85b03`.
 
+## Latest PR-only verification
+
+Verified on 2026-11-20 (Asia/Bangkok). [PR #1](https://github.com/HafizGD/Keyshift/pull/1)
+is open from `fix/audit-runtime-errors` to `main`; it is not merged.
+The PR, local HEAD, and remote branch were verified at
+`976b78371b77c6232673bd8f1581452501a5d9d9` before this documentation update.
+
+[CI run 44664181017](https://github.com/HafizGD/Keyshift/actions/runs/44664181017)
+completed successfully. All four Python 3.10-3.13 jobs passed tests and the
+build/twine steps. Fresh local verification passed **113 tests in 0.38s**,
+pip check, isolated source/wheel builds, twine checks, and full-branch whitespace
+checks. The original 111-test checkpoint is preserved below; two later
+service-reuse regression cases account for the current total.
+
+The user explicitly approved official Git-helper authentication for PR and CI
+API requests. The PR publication/authentication obstacle is resolved. Credentials
+were not displayed or saved to files. No merge or auto-merge was performed by
+this session; existing merge-planning notes below are historical context, not
+an instruction to merge as part of this PR-only handover.
+
+This snapshot names the exact tested revision. The following documentation-only
+commit must also pass current PR checks before final delivery. The PR Checks
+view records the newest run; subsequent pushes require fresh verification.
+
 ## Delivered work
 
 Five audit defects are fixed: repeated active macro crashes, premature shared-key

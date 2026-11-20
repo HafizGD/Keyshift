@@ -21,6 +21,10 @@ Physical keyboard grabbing, actual uinput output, desktop remapping, and
 physical reconnect remain unverified: WSL has no /dev/input and no usable
 uinput access. No device permissions or kernel settings were changed.
 
-The user authorized squash merge after the latest PR CI succeeds. Respect
-all GitHub branch rules and required reviews; verify main and its CI after
-merge. No release version or package publication is included.
+CI run 44664181017 passed all four Python 3.10-3.13 jobs on commit 976b783,
+including tests and distribution build/twine checks. Fresh local verification
+passed 113 tests. See the current PR checks for any later documentation update.
+
+This handover stops at the open PR and verified CI. Do not infer permission to
+merge from the approval to use Git-helper authentication for PR/CI requests.
+No merge, auto-merge, release version change, or package publication is included.

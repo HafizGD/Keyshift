@@ -24,4 +24,6 @@
 
 - Verify the complete final-review revision `664f506` with [CI run 44663810657](https://github.com/HafizGD/Keyshift/actions/runs/44663810657), passing on Python 3.10-3.13; merge status is recorded separately in the handover.
 
+- Confirm PR #1 remains open and [CI run 44664181017](https://github.com/HafizGD/Keyshift/actions/runs/44664181017) passes on Python 3.10-3.13; fresh local verification passes 113 tests.
+
 No release version has been changed or published by this work.
