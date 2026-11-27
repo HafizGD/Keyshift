@@ -10,11 +10,11 @@ from keyshift.device_manager import DeviceError, DeviceInfo, VIRTUAL_DEVICE_NAME
 class UinputPermissionError(DeviceError):
     """Raised when the virtual input device cannot be created."""
 
-    def __init__(self) -> None:
+    def __init__(self, error: OSError) -> None:
         super().__init__(
-            "Cannot open /dev/uinput. Load it with 'sudo modprobe uinput', "
-            "install the keyshift udev rule for GROUP=\"input\", and log out "
-            "and back in after joining the input group."
+            f"Cannot create a virtual keyboard via /dev/uinput: {error}. "
+            "Check that uinput is available and that your account has access "
+            "to /dev/uinput."
         )
 
 
@@ -122,7 +122,7 @@ class VirtualKeyboard:
         try:
             self._uinput = evdev.UInput(events=events, name=self.name)
         except OSError as error:
-            raise UinputPermissionError() from error
+            raise UinputPermissionError(error) from error
 
     def _get_capabilities(self, evdev) -> dict[int, list[int]]:
         if self.source is None:
@@ -140,6 +140,11 @@ class VirtualKeyboard:
             source_path = self.source
         source_device = evdev.InputDevice(source_path)
         try:
-            return source_device.capabilities()
+            capabilities = source_device.capabilities()
+            return {
+                event_type: codes
+                for event_type, codes in capabilities.items()
+                if event_type != evdev.ecodes.EV_SYN
+            }
         finally:
             source_device.close()

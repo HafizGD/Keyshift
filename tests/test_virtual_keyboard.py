@@ -83,7 +83,10 @@ def test_close_releases_all_held_keys(monkeypatch) -> None:
 
 def test_source_capabilities_are_copied_and_source_is_closed(monkeypatch) -> None:
     devices = patch_uinput(monkeypatch)
-    copied = {evdev.ecodes.EV_KEY: [evdev.ecodes.KEY_A]}
+    copied = {
+        evdev.ecodes.EV_SYN: [evdev.ecodes.SYN_CONFIG],
+        evdev.ecodes.EV_KEY: [evdev.ecodes.KEY_A],
+    }
 
     class SourceDevice:
         closed = False
@@ -108,20 +111,32 @@ def test_source_capabilities_are_copied_and_source_is_closed(monkeypatch) -> Non
     with VirtualKeyboard(source=source):
         pass
 
-    assert devices[0].events == copied
+    assert devices[0].events == {evdev.ecodes.EV_KEY: [evdev.ecodes.KEY_A]}
+    assert evdev.ecodes.EV_SYN in copied
     assert source_device.closed
 
 
-def test_uinput_permission_error_has_setup_guidance(monkeypatch) -> None:
+def test_uinput_error_preserves_cause_and_setup_guidance(monkeypatch) -> None:
     def denied(**kwargs):
         raise PermissionError("permission denied")
 
     patch_uinput(monkeypatch, factory=denied)
 
-    with pytest.raises(UinputPermissionError, match="modprobe uinput") as error:
+    with pytest.raises(UinputPermissionError, match="/dev/uinput") as error:
         VirtualKeyboard()._open()
 
-    assert "input group" in str(error.value)
+    assert "account has access" in str(error.value)
+    assert "permission denied" in str(error.value)
+
+
+def test_uinput_error_preserves_underlying_error(monkeypatch) -> None:
+    def invalid_argument(**kwargs):
+        raise OSError(22, "Invalid argument")
+
+    patch_uinput(monkeypatch, factory=invalid_argument)
+
+    with pytest.raises(UinputPermissionError, match="Invalid argument"):
+        VirtualKeyboard()._open()
 
 
 def test_emit_rejects_invalid_key_values(monkeypatch) -> None:
